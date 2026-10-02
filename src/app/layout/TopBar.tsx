@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router'
+import { UserMenu } from '@/features/auth/components/UserMenu'
 import { navItems } from '../nav'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -15,7 +16,10 @@ export function TopBar() {
         <span className="md:hidden">Ledgerly</span>
         <span className="hidden md:inline">{current?.label ?? 'Ledgerly'}</span>
       </div>
-      <ThemeToggle />
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <UserMenu />
+      </div>
     </header>
   )
 }
