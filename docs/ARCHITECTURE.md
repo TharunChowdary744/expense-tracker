@@ -42,5 +42,5 @@ There is no custom server. Anything that must be trusted is enforced by security
 
 ## Environments
 
-- **Dev:** `VITE_USE_EMULATORS=true` points the app at local Auth, Firestore, and Storage emulators.
-- **Prod:** Firebase Hosting with config from `VITE_FIREBASE_*` env vars.
+- **Local:** `VITE_USE_EMULATORS=true` points the app at local Auth, Firestore, and Storage emulators.
+- **dev / test / prod:** three separate Firebase projects, deployed by GitHub Actions when PRs merge into `develop`, `test` and `prod`. Config comes from per-environment GitHub secrets. Details in [`DEPLOYMENT.md`](DEPLOYMENT.md).

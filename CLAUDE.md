@@ -97,6 +97,7 @@ src/
 - Env config via `import.meta.env.VITE_FIREBASE_*`.
 - `.env.example` is committed; `.env.local` is git-ignored.
 - `VITE_USE_EMULATORS` connects to the local emulators in dev.
+- Three Firebase projects (dev, test, prod), one per GitHub Environment. CI/CD secrets live only in GitHub Environment secrets; see `docs/DEPLOYMENT.md`.
 
 ### UX baseline
 
@@ -170,7 +171,7 @@ All amounts are integer minor units. `?` marks an optional field.
 ## 5. Working agreement
 
 1. **Plan first.** For each phase, first reply with a short plan: files to create or change, data/rules changes, and risks. Wait for the owner's "go" only if they ask for that; otherwise proceed.
-2. **Branching.** Work on a branch named `phase-<n>-<slug>`. Commit in small, logical commits with Conventional Commit messages.
+2. **Branching.** Work on a branch named `phase-<n>-<slug>`, cut from `develop`, and open the PR into `develop`. Commit in small, logical commits with Conventional Commit messages. Promotion is `develop` → `test` → `prod`, each by PR; merging deploys that environment (see `docs/DEPLOYMENT.md`). Never push directly to `develop`, `test` or `prod`.
 3. **Tight scope.** Build only what the phase asks. Put other ideas in `docs/BACKLOG.md` instead of building them.
 4. **Tests alongside code:** unit tests for utils and reducers, component tests for forms, rules tests for any rule change.
 5. **Definition of done.** Before saying "done", run all of these and fix every failure:
@@ -191,4 +192,5 @@ All amounts are integer minor units. `?` marks an optional field.
 ## 6. Related docs
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): short architecture overview
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): branches, environments, CI/CD and secrets
 - [`docs/BACKLOG.md`](docs/BACKLOG.md): ideas and deferred work
