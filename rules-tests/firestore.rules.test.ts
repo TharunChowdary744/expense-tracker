@@ -52,7 +52,7 @@ describe('users/{uid}', () => {
 
   it('lets the owner use any subcollection, at any depth', async () => {
     await assertSucceeds(getDoc(doc(alice(), 'users/alice/accounts/cash')))
-    await assertSucceeds(setDoc(doc(alice(), 'users/alice/categories/food'), { name: 'Food' }))
+    await assertSucceeds(setDoc(doc(alice(), 'users/alice/budgets/b1'), { name: 'Food' }))
     await assertSucceeds(getDocs(collection(alice(), 'users/alice/transactions')))
     await assertSucceeds(
       setDoc(doc(alice(), 'users/alice/transactions/t1/notes/n2'), { text: 'x' }),

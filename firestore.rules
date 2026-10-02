@@ -1,7 +1,9 @@
 rules_version = '2';
 
-// Rules v1 (phase 2).
+// Rules v2 (phase 3).
 // - users/{uid} and everything below it is readable and writable only by that user.
+// - accounts and categories are also validated: required fields, field types, integer money
+//   amounts, server timestamps, and (for categories) a valid one-level parent.
 // - Everything else is denied by default. Later phases add their own match blocks
 //   (groups, invites, ...) together with tests in rules-tests/.
 service cloud.firestore {
@@ -11,11 +13,110 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    // ---- shared validators ------------------------------------------------------------------
+
+    function isName(v) {
+      return v is string && v.size() >= 1 && v.size() <= 40;
+    }
+
+    function isColor(v) {
+      return v is string && v.matches('^#[0-9a-fA-F]{6}$');
+    }
+
+    function isIcon(v) {
+      return v is string && v.matches('^[a-z0-9-]{1,40}$');
+    }
+
+    function isCurrency(v) {
+      return v is string && v.matches('^[A-Z]{3}$');
+    }
+
+    // Money is integer minor units within JavaScript's safe integer range.
+    function isMoney(v) {
+      return v is int && v <= 9007199254740991 && v >= -9007199254740991;
+    }
+
+    // createdAt/createdBy are set once by the server clock and owner; updatedAt on every write.
+    function hasValidStamps(uid) {
+      let d = request.resource.data;
+      return d.updatedAt == request.time
+        && (resource == null
+          ? d.createdAt == request.time && d.createdBy == uid
+          : d.createdAt == resource.data.createdAt && d.createdBy == resource.data.createdBy);
+    }
+
+    // ---- users/{uid} ------------------------------------------------------------------------
+
     match /users/{uid} {
       allow read, write: if isOwner(uid);
 
-      match /{document=**} {
-        allow read, write: if isOwner(uid);
+      // ---- accounts ----
+      match /accounts/{accountId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && isValidAccount(uid);
+      }
+
+      function isValidAccount(uid) {
+        let d = request.resource.data;
+        return d.keys().hasAll(['name', 'type', 'currency', 'openingBalance', 'color', 'icon',
+                                'archived', 'createdAt', 'updatedAt', 'createdBy'])
+          && d.keys().hasOnly(['name', 'type', 'currency', 'openingBalance', 'color', 'icon',
+                               'archived', 'createdAt', 'updatedAt', 'createdBy'])
+          && isName(d.name)
+          && d.type in ['cash', 'bank', 'card', 'wallet', 'other']
+          && isCurrency(d.currency)
+          && isMoney(d.openingBalance)
+          && isColor(d.color)
+          && isIcon(d.icon)
+          && d.archived is bool
+          && hasValidStamps(uid);
+      }
+
+      // ---- categories ----
+      match /categories/{categoryId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && isValidCategory(uid, categoryId);
+      }
+
+      function isValidCategory(uid, categoryId) {
+        let d = request.resource.data;
+        return d.keys().hasAll(['name', 'kind', 'icon', 'color', 'order', 'archived',
+                                'createdAt', 'updatedAt', 'createdBy'])
+          && d.keys().hasOnly(['name', 'kind', 'icon', 'color', 'parentId', 'order', 'archived',
+                               'createdAt', 'updatedAt', 'createdBy'])
+          && isName(d.name)
+          && d.kind in ['expense', 'income']
+          && isIcon(d.icon)
+          && isColor(d.color)
+          && d.order is int && d.order >= 0 && d.order <= 100000
+          && d.archived is bool
+          && hasValidStamps(uid)
+          // The kind is fixed after creation: subcategories and history depend on it.
+          && (resource == null || d.kind == resource.data.kind)
+          && isValidParent(uid, categoryId, d);
+      }
+
+      // Subcategories go one level deep: the parent must exist (after this write, so a batch
+      // may create both), be top-level, have the same kind, and not be the category itself.
+      // The parent is only re-checked when parentId changes.
+      function isValidParent(uid, categoryId, d) {
+        let parentId = d.get('parentId', null);
+        let unchanged = resource != null && resource.data.get('parentId', null) == parentId;
+        return parentId == null
+          || unchanged
+          || (parentId is string
+            && parentId != categoryId
+            && existsAfter(/databases/$(database)/documents/users/$(uid)/categories/$(parentId))
+            && getAfter(/databases/$(database)/documents/users/$(uid)/categories/$(parentId))
+                 .data.get('parentId', null) == null
+            && getAfter(/databases/$(database)/documents/users/$(uid)/categories/$(parentId))
+                 .data.kind == d.kind);
+      }
+
+      // ---- every other subcollection (validated in later phases) ----
+      match /{collection}/{document=**} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid) && !(collection in ['accounts', 'categories']);
       }
     }
 

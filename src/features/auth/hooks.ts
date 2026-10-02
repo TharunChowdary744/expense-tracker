@@ -11,3 +11,10 @@ export function useAuth() {
 export function needsEmailVerification(user: AuthUser): boolean {
   return !user.emailVerified && user.providerIds.includes('password')
 }
+
+/** The signed-in user's uid. Only use under ProtectedRoute, where a user always exists. */
+export function useUid(): string {
+  const user = useAppSelector((s) => s.auth.user)
+  if (!user) throw new Error('useUid() needs a signed-in user')
+  return user.uid
+}

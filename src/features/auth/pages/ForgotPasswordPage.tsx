@@ -5,8 +5,8 @@ import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useSendPasswordResetMutation } from '../api'
 import { AuthLayout } from '../components/AuthLayout'
-import { FormMessage } from '../components/FormMessage'
-import { TextField } from '../components/TextField'
+import { FormMessage } from '@/components/form/FormMessage'
+import { TextField } from '@/components/form/TextField'
 import { forgotPasswordSchema, type ForgotPasswordValues } from '../schemas'
 
 export function ForgotPasswordPage() {

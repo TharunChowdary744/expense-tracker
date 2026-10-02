@@ -4,7 +4,15 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing'
-import { collection, doc, getDoc, getDocs, updateDoc, type Firestore } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  updateDoc,
+  type Firestore,
+} from 'firebase/firestore'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { ensureUserBootstrap } from '../src/features/auth/bootstrap'
 
@@ -45,7 +53,10 @@ describe('ensureUserBootstrap against the real rules', () => {
 
   it('is idempotent: a second run changes nothing, even after the user edits their data', async () => {
     const db = asDb('alice')
-    await updateDoc(doc(db, 'users/alice/categories/food'), { name: 'Groceries' })
+    await updateDoc(doc(db, 'users/alice/categories/food'), {
+      name: 'Groceries',
+      updatedAt: serverTimestamp(),
+    })
 
     await expect(ensureUserBootstrap(db, profile, 'en-IN')).resolves.toBe(false)
 

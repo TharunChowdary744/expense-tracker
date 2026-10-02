@@ -14,7 +14,7 @@ export function AppLayout() {
       <Sidebar />
       <div className="flex min-h-dvh flex-col md:pl-60">
         <TopBar />
-        <main id="main" className="flex-1 p-4 pb-28 md:p-6 md:pb-6">
+        <main id="main" className="flex-1 p-4 pb-28 md:p-6 md:pb-28">
           <Suspense fallback={<PageSkeleton />}>
             <Outlet />
           </Suspense>

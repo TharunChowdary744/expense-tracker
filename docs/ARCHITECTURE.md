@@ -34,6 +34,15 @@ There is no custom server. Anything that must be trusted is enforced by security
 | zod on forms and on Firestore reads                  | Same schema guards user input and stored data                                                 |
 | One custom service worker (`injectManifest`)         | Workbox offline caching and FCM push share a single SW                                        |
 
+## Firestore access pattern
+
+`src/services/firestore.ts` connects RTK Query to Firestore:
+
+- `collectionListener` / `docListener` build an endpoint's `queryFn` (first snapshot, served from the offline cache when needed) and `onCacheEntryAdded` (a live `onSnapshot` until the cache entry is removed).
+- Every document goes through `toPlain` (Timestamps become ISO strings) and its zod schema. Invalid docs are skipped and reported once. Items carry `id` and `pending` (unsynced local changes).
+- `firestoreWrite` returns `{ data }` or `{ error }` with a friendly message. It waits for the server for a short grace period, or not at all while offline; Firestore applies the write locally and syncs later, and a late rejection shows a toast.
+- Mutations invalidate the feature's `LIST` tag; the live listener usually updates the cache first.
+
 ## Data ownership
 
 - `users/{uid}/**` is private to that user.

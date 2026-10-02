@@ -3,7 +3,7 @@ import { Navigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useRefreshUserMutation, useResendVerificationMutation, useSignOutMutation } from '../api'
 import { AuthLayout } from '../components/AuthLayout'
-import { FormMessage } from '../components/FormMessage'
+import { FormMessage } from '@/components/form/FormMessage'
 import { needsEmailVerification, useAuth } from '../hooks'
 import { clearReturnTo, resolveReturnTo } from '../returnTo'
 

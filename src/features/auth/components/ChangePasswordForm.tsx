@@ -6,8 +6,8 @@ import { useToast } from '@/features/ui/hooks'
 import { useChangePasswordMutation } from '../api'
 import { changePasswordSchema, type ChangePasswordValues } from '../schemas'
 import type { AuthUser } from '../types'
-import { FormMessage } from './FormMessage'
-import { TextField } from './TextField'
+import { FormMessage } from '@/components/form/FormMessage'
+import { TextField } from '@/components/form/TextField'
 
 export function ChangePasswordForm({ user }: { user: AuthUser }) {
   const toast = useToast()
