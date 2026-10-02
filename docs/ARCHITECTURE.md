@@ -23,16 +23,16 @@ There is no custom server. Anything that must be trusted is enforced by security
 
 ## Key decisions
 
-| Decision | Reason |
-| --- | --- |
-| Client-only, Firebase direct | Small ops surface; rules give per-document authorisation |
-| RTK Query for all Firestore access | One cache, consistent loading/error states, real-time via `onSnapshot` with clean unsubscribe |
-| Feature-sliced folders | Each feature owns its endpoints, schemas, UI, and tests |
-| Integer minor units for money | Avoid float rounding; deterministic split allocation |
-| Balances derived from transactions | One source of truth; optional cached field only if updated in the same batch |
-| Multi-doc writes via `writeBatch` / `runTransaction` | Transfers and settlements stay atomic |
-| zod on forms and on Firestore reads | Same schema guards user input and stored data |
-| One custom service worker (`injectManifest`) | Workbox offline caching and FCM push share a single SW |
+| Decision                                             | Reason                                                                                        |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Client-only, Firebase direct                         | Small ops surface; rules give per-document authorisation                                      |
+| RTK Query for all Firestore access                   | One cache, consistent loading/error states, real-time via `onSnapshot` with clean unsubscribe |
+| Feature-sliced folders                               | Each feature owns its endpoints, schemas, UI, and tests                                       |
+| Integer minor units for money                        | Avoid float rounding; deterministic split allocation                                          |
+| Balances derived from transactions                   | One source of truth; optional cached field only if updated in the same batch                  |
+| Multi-doc writes via `writeBatch` / `runTransaction` | Transfers and settlements stay atomic                                                         |
+| zod on forms and on Firestore reads                  | Same schema guards user input and stored data                                                 |
+| One custom service worker (`injectManifest`)         | Workbox offline caching and FCM push share a single SW                                        |
 
 ## Data ownership
 
