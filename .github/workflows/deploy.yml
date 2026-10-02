@@ -1,0 +1,79 @@
+name: Deploy
+
+# A merged PR lands as a push on the target branch, which deploys that environment:
+#   develop -> dev    test -> test    prod -> prod
+# Each GitHub Environment (dev, test, prod) holds its own Firebase secrets.
+# See docs/DEPLOYMENT.md.
+
+on:
+  push:
+    branches: [develop, test, prod]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'develop' && 'dev' || github.ref_name }}
+    if: contains(fromJSON('["develop","test","prod"]'), github.ref_name)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect app and Firebase config
+        id: app
+        run: |
+          [ -f package.json ] && echo "node=true" >> "$GITHUB_OUTPUT" || echo "node=false" >> "$GITHUB_OUTPUT"
+          [ -f firebase.json ] && echo "firebase=true" >> "$GITHUB_OUTPUT" || echo "firebase=false" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.app.outputs.node == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - if: steps.app.outputs.node == 'true'
+        run: npm ci
+      - if: steps.app.outputs.node == 'true'
+        run: npm run lint
+      - if: steps.app.outputs.node == 'true'
+        run: npm run typecheck
+      - if: steps.app.outputs.node == 'true'
+        run: npm run test
+
+      - name: Build with environment config
+        if: steps.app.outputs.node == 'true'
+        env:
+          VITE_USE_EMULATORS: 'false'
+          VITE_APP_ENV: ${{ github.ref_name == 'develop' && 'dev' || github.ref_name }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
+        run: npm run build
+
+      - name: Authenticate to Google Cloud
+        if: steps.app.outputs.firebase == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy Hosting, rules and indexes
+        if: steps.app.outputs.firebase == 'true'
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+        run: npx --yes firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --non-interactive
+
+      - name: Nothing to deploy yet
+        if: steps.app.outputs.firebase != 'true'
+        run: echo "No firebase.json yet; skipping deploy for ${{ github.ref_name }}."

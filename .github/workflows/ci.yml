@@ -1,0 +1,82 @@
+name: CI
+
+# Runs on every pull request into an environment branch.
+# - Enforces the promotion order: feature -> develop -> test -> prod.
+# - Runs lint, typecheck, unit tests and build (once the app exists).
+
+on:
+  pull_request:
+    branches: [develop, test, prod]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  promotion-guard:
+    name: Promotion order
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch is allowed for this target
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          case "$BASE" in
+            test)
+              if [ "$HEAD" != "develop" ]; then
+                echo "::error::PRs into 'test' must come from 'develop' (got '$HEAD')."
+                exit 1
+              fi ;;
+            prod)
+              if [ "$HEAD" != "test" ]; then
+                echo "::error::PRs into 'prod' must come from 'test' (got '$HEAD')."
+                exit 1
+              fi ;;
+            develop)
+              if [ "$HEAD" = "test" ] || [ "$HEAD" = "prod" ]; then
+                echo "::error::Do not merge '$HEAD' back into 'develop' via PR."
+                exit 1
+              fi ;;
+          esac
+          echo "OK: $HEAD -> $BASE"
+
+  checks:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect app
+        id: app
+        run: |
+          if [ -f package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "No package.json yet; skipping checks."; fi
+
+      - uses: actions/setup-node@v4
+        if: steps.app.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - if: steps.app.outputs.present == 'true'
+        run: npm ci
+      - if: steps.app.outputs.present == 'true'
+        run: npm run lint
+      - if: steps.app.outputs.present == 'true'
+        run: npm run typecheck
+      - if: steps.app.outputs.present == 'true'
+        run: npm run test
+      - if: steps.app.outputs.present == 'true'
+        name: Build (emulator config, no real secrets)
+        env:
+          VITE_USE_EMULATORS: 'true'
+          VITE_FIREBASE_API_KEY: ci-placeholder
+          VITE_FIREBASE_AUTH_DOMAIN: demo-ledgerly.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: demo-ledgerly
+          VITE_FIREBASE_STORAGE_BUCKET: demo-ledgerly.appspot.com
+          VITE_FIREBASE_MESSAGING_SENDER_ID: '0'
+          VITE_FIREBASE_APP_ID: ci-placeholder
+        run: npm run build
