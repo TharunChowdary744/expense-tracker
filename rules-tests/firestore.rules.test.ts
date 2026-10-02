@@ -54,9 +54,7 @@ describe('users/{uid}', () => {
     await assertSucceeds(getDoc(doc(alice(), 'users/alice/accounts/cash')))
     await assertSucceeds(setDoc(doc(alice(), 'users/alice/budgets/b1'), { name: 'Food' }))
     await assertSucceeds(getDocs(collection(alice(), 'users/alice/transactions')))
-    await assertSucceeds(
-      setDoc(doc(alice(), 'users/alice/transactions/t1/notes/n2'), { text: 'x' }),
-    )
+    await assertSucceeds(setDoc(doc(alice(), 'users/alice/budgets/b1/notes/n2'), { text: 'x' }))
   })
 
   it("denies another signed-in user from reading or writing someone else's data", async () => {

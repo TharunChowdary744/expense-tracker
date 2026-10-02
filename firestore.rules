@@ -1,9 +1,11 @@
 rules_version = '2';
 
-// Rules v2 (phase 3).
+// Rules v3 (phase 4).
 // - users/{uid} and everything below it is readable and writable only by that user.
 // - accounts and categories are also validated: required fields, field types, integer money
 //   amounts, server timestamps, and (for categories) a valid one-level parent.
+// - transactions are validated: type enum, integer amounts > 0, and references to the user's
+//   own accounts and categories (category kind must match the type).
 // - Everything else is denied by default. Later phases add their own match blocks
 //   (groups, invites, ...) together with tests in rules-tests/.
 service cloud.firestore {
@@ -36,6 +38,14 @@ service cloud.firestore {
       return v is int && v <= 9007199254740991 && v >= -9007199254740991;
     }
 
+    function isPositiveMoney(v) {
+      return isMoney(v) && v > 0;
+    }
+
+    function isOptionalString(d, key, maxSize) {
+      return !(key in d) || (d[key] is string && d[key].size() >= 1 && d[key].size() <= maxSize);
+    }
+
     // createdAt/createdBy are set once by the server clock and owner; updatedAt on every write.
     function hasValidStamps(uid) {
       let d = request.resource.data;
@@ -60,8 +70,10 @@ service cloud.firestore {
         let d = request.resource.data;
         return d.keys().hasAll(['name', 'type', 'currency', 'openingBalance', 'color', 'icon',
                                 'archived', 'createdAt', 'updatedAt', 'createdBy'])
-          && d.keys().hasOnly(['name', 'type', 'currency', 'openingBalance', 'color', 'icon',
-                               'archived', 'createdAt', 'updatedAt', 'createdBy'])
+          && d.keys().hasOnly(['name', 'type', 'currency', 'openingBalance', 'txTotal', 'color',
+                               'icon', 'archived', 'createdAt', 'updatedAt', 'createdBy'])
+          // Cached sum of this account's transactions, changed in the same batch as them.
+          && (!('txTotal' in d) || isMoney(d.txTotal))
           && isName(d.name)
           && d.type in ['cash', 'bank', 'card', 'wallet', 'other']
           && isCurrency(d.currency)
@@ -113,10 +125,68 @@ service cloud.firestore {
                  .data.kind == d.kind);
       }
 
+      // ---- transactions ----
+      match /transactions/{txId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && isValidTransaction(uid);
+      }
+
+      function isValidTransaction(uid) {
+        let d = request.resource.data;
+        let before = resource == null ? {} : resource.data;
+        return d.keys().hasAll(['type', 'amount', 'currency', 'fxRateToBase', 'baseAmount',
+                                'accountId', 'tags', 'payee', 'note', 'date', 'attachments',
+                                'createdAt', 'updatedAt', 'createdBy'])
+          && d.keys().hasOnly(['type', 'amount', 'currency', 'fxRateToBase', 'baseAmount',
+                               'accountId', 'toAccountId', 'categoryId', 'tags', 'payee', 'note',
+                               'date', 'attachments', 'recurringId', 'occurrenceKey',
+                               'groupExpenseRef', 'createdAt', 'updatedAt', 'createdBy'])
+          && d.type in ['expense', 'income', 'transfer']
+          && isPositiveMoney(d.amount)
+          && isPositiveMoney(d.baseAmount)
+          && isCurrency(d.currency)
+          && d.fxRateToBase is number && d.fxRateToBase > 0
+          && d.date is timestamp
+          && d.payee is string && d.payee.size() <= 80
+          && d.note is string && d.note.size() <= 500
+          && d.tags is list && d.tags.size() <= 10
+          && d.attachments is list && d.attachments.size() <= 10
+          && isOptionalString(d, 'recurringId', 100)
+          && isOptionalString(d, 'occurrenceKey', 100)
+          && isOptionalString(d, 'groupExpenseRef', 300)
+          && hasValidStamps(uid)
+          && isOwnAccount(uid, d.accountId, before.get('accountId', null))
+          && (d.type == 'transfer'
+            ? !('categoryId' in d)
+              && d.get('toAccountId', null) is string
+              && d.toAccountId != d.accountId
+              && isOwnAccount(uid, d.toAccountId, before.get('toAccountId', null))
+            : !('toAccountId' in d) && isValidTxCategory(uid, d, before));
+      }
+
+      // The account must exist under this user. Only checked when the reference changes, so
+      // bulk edits don't spend document reads on unchanged references.
+      function isOwnAccount(uid, accountId, previous) {
+        return accountId is string
+          && (accountId == previous
+            || exists(/databases/$(database)/documents/users/$(uid)/accounts/$(accountId)));
+      }
+
+      // Optional; when set it must be one of the user's categories of the same kind as the
+      // transaction type. Re-checked when the category or the type changes.
+      function isValidTxCategory(uid, d, before) {
+        let categoryId = d.get('categoryId', null);
+        return categoryId == null
+          || (categoryId is string
+            && ((categoryId == before.get('categoryId', null) && d.type == before.get('type', null))
+              || get(/databases/$(database)/documents/users/$(uid)/categories/$(categoryId))
+                   .data.kind == d.type));
+      }
+
       // ---- every other subcollection (validated in later phases) ----
       match /{collection}/{document=**} {
         allow read: if isOwner(uid);
-        allow write: if isOwner(uid) && !(collection in ['accounts', 'categories']);
+        allow write: if isOwner(uid) && !(collection in ['accounts', 'categories', 'transactions']);
       }
     }
 
