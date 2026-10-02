@@ -40,17 +40,18 @@ npm run emulators   # Auth, Firestore, Storage, Hosting + Emulator UI on :4000
 
 ## Scripts
 
-| Script               | What it does                                                                      |
-| -------------------- | --------------------------------------------------------------------------------- |
-| `npm run dev`        | Vite dev server                                                                   |
-| `npm run build`      | Typecheck then production build into `dist/`                                      |
-| `npm run preview`    | Serve the production build                                                        |
-| `npm run lint`       | ESLint (zero warnings allowed)                                                    |
-| `npm run typecheck`  | `tsc -b --noEmit`                                                                 |
-| `npm run test`       | Vitest + React Testing Library                                                    |
-| `npm run test:rules` | Security-rules tests against the Firestore and Storage emulators (needs Java 21+) |
-| `npm run test:e2e`   | Playwright smoke tests (desktop and mobile viewports)                             |
-| `npm run format`     | Prettier write                                                                    |
+| Script                                                                   | What it does                                                                       |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `npm run dev`                                                            | Vite dev server                                                                    |
+| `npm run build`                                                          | Typecheck then production build into `dist/`                                       |
+| `npm run preview`                                                        | Serve the production build                                                         |
+| `npm run lint`                                                           | ESLint (zero warnings allowed)                                                     |
+| `npm run typecheck`                                                      | `tsc -b --noEmit`                                                                  |
+| `npm run test`                                                           | Vitest + React Testing Library                                                     |
+| `npm run test:rules`                                                     | Security-rules tests against the Firestore and Storage emulators (needs Java 21+)  |
+| `npm run test:e2e`                                                       | Playwright smoke tests (desktop and mobile viewports)                              |
+| `npm run format`                                                         | Prettier write                                                                     |
+| `npm run seed:transactions -- --email you@example.com --password secret` | Dev only: writes ~250 transactions (tagged `#seed`) for that user to the emulators |
 
 ### End-to-end tests
 
