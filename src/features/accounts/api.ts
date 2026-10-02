@@ -41,6 +41,7 @@ export const accountsApi = api.injectEndpoints({
           const ref = doc(accountsCol(getFirebase().db, uid))
           const commit = setDoc(ref, {
             ...values,
+            txTotal: 0,
             archived: false,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),

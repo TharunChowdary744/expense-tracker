@@ -24,7 +24,7 @@ import { getFirebase } from '@/lib/firebase'
  *   while offline (Firestore queues the write and syncs it later).
  */
 
-type AnyDispatch = ThunkDispatch<unknown, unknown, UnknownAction>
+export type AnyDispatch = ThunkDispatch<unknown, unknown, UnknownAction>
 
 /** Every stored item carries its doc id and whether it still has unsynced local changes. */
 export type Stored<T> = T & { id: string; pending: boolean }
@@ -184,7 +184,7 @@ interface LifecycleApi<Data> {
   cacheEntryRemoved: Promise<unknown>
 }
 
-function reportInvalid(dispatch: AnyDispatch, label: string, invalid: InvalidDoc[]) {
+export function reportInvalid(dispatch: AnyDispatch, label: string, invalid: InvalidDoc[]) {
   if (invalid.length === 0) return
   for (const doc of invalid)
     console.warn(`[firestore] skipped invalid doc ${doc.path}`, doc.message)

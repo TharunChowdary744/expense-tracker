@@ -22,6 +22,8 @@ export const accountSchema = z.object({
   type: z.enum(ACCOUNT_TYPES),
   currency: z.string().regex(CURRENCY_CODE),
   openingBalance: z.number().int().refine(Number.isSafeInteger),
+  /** Cached sum of transaction effects in this account's currency (0 before any). */
+  txTotal: z.number().int().refine(Number.isSafeInteger).default(0),
   color: z.string().regex(HEX_COLOR).catch('#64748b'),
   icon: z.string().catch('wallet'),
   archived: z.boolean().default(false),

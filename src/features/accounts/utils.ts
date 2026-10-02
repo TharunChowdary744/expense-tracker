@@ -1,24 +1,12 @@
-import type { Account, BalanceTransaction, NetWorth } from './types'
+import type { Account, NetWorth } from './types'
 
 /**
- * Current balance = opening balance + every transaction that touches the account.
- * Expenses and outgoing transfers subtract, income and incoming transfers add.
- * Until transactions exist (phase 3) callers pass none, so this is the opening balance.
+ * Current balance = opening balance + the account's cached transaction total. `txTotal` is the
+ * sum of every transaction's effect on the account (see `balanceEffects` in transactions) and
+ * is changed with `increment()` in the same batch as each transaction write.
  */
-export function accountBalance(
-  account: Pick<Account, 'id' | 'openingBalance'>,
-  transactions: readonly BalanceTransaction[] = [],
-): number {
-  let balance = account.openingBalance
-  for (const tx of transactions) {
-    if (tx.type === 'income' && tx.accountId === account.id) balance += tx.amount
-    else if (tx.type === 'expense' && tx.accountId === account.id) balance -= tx.amount
-    else if (tx.type === 'transfer') {
-      if (tx.accountId === account.id) balance -= tx.amount
-      if (tx.toAccountId === account.id) balance += tx.amount
-    }
-  }
-  return balance
+export function accountBalance(account: Pick<Account, 'openingBalance' | 'txTotal'>): number {
+  return account.openingBalance + account.txTotal
 }
 
 /**

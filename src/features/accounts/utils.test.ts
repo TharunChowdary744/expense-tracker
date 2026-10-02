@@ -8,6 +8,7 @@ const account = (over: Partial<Account> = {}): Account => ({
   type: 'bank',
   currency: 'INR',
   openingBalance: 10000,
+  txTotal: 0,
   color: '#2563eb',
   icon: 'landmark',
   archived: false,
@@ -19,21 +20,10 @@ const account = (over: Partial<Account> = {}): Account => ({
 })
 
 describe('accountBalance', () => {
-  it('is the opening balance while there are no transactions', () => {
+  it('is the opening balance plus the cached transaction total', () => {
     expect(accountBalance(account())).toBe(10000)
     expect(accountBalance(account({ openingBalance: -500 }))).toBe(-500)
-    expect(accountBalance(account({ openingBalance: 0 }), [])).toBe(0)
-  })
-
-  it('applies income, expenses and transfers that touch the account', () => {
-    const balance = accountBalance(account(), [
-      { type: 'income', amount: 5000, accountId: 'a' },
-      { type: 'expense', amount: 1200, accountId: 'a' },
-      { type: 'expense', amount: 999, accountId: 'other' },
-      { type: 'transfer', amount: 300, accountId: 'a', toAccountId: 'b' },
-      { type: 'transfer', amount: 700, accountId: 'b', toAccountId: 'a' },
-    ])
-    expect(balance).toBe(10000 + 5000 - 1200 - 300 + 700)
+    expect(accountBalance(account({ txTotal: -12550 }))).toBe(10000 - 12550)
   })
 })
 
