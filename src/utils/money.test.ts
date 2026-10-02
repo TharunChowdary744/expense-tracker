@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { allocate, currencyDigits, formatMoney, fromMinor, isMinor, toMinor } from './money'
+import {
+  allocate,
+  convertMinor,
+  currencyDigits,
+  formatMoney,
+  fromMinor,
+  isMinor,
+  isValidRate,
+  toMinor,
+} from './money'
 
 /** Intl output uses narrow/no-break spaces in some locales; normalise for readable asserts. */
 const plain = (s: string) => s.replace(/[\u00a0\u202f]/g, ' ')
@@ -219,5 +228,51 @@ describe('isMinor', () => {
     expect(isMinor(1.5)).toBe(false)
     expect(isMinor('100')).toBe(false)
     expect(isMinor(Number.MAX_SAFE_INTEGER + 1)).toBe(false)
+  })
+})
+
+describe('isValidRate', () => {
+  it('accepts positive decimal strings', () => {
+    expect(isValidRate('83.25')).toBe(true)
+    expect(isValidRate(' 1 ')).toBe(true)
+    expect(isValidRate('0.0000000001')).toBe(true)
+  })
+
+  it('rejects zero, signs, exponents and too many digits', () => {
+    expect(isValidRate('0')).toBe(false)
+    expect(isValidRate('0.000')).toBe(false)
+    expect(isValidRate('-1')).toBe(false)
+    expect(isValidRate('1e3')).toBe(false)
+    expect(isValidRate('1.')).toBe(false)
+    expect(isValidRate('')).toBe(false)
+    expect(isValidRate('0.00000000001')).toBe(false)
+    expect(isValidRate('1234567890123')).toBe(false)
+  })
+})
+
+describe('convertMinor', () => {
+  it('converts between currencies with different minor digits', () => {
+    expect(convertMinor(1250, 'USD', 'INR', '83.5')).toBe(104375)
+    expect(convertMinor(1000, 'JPY', 'INR', '0.56')).toBe(56000)
+    expect(convertMinor(100000, 'INR', 'JPY', '1.79')).toBe(1790)
+    expect(convertMinor(1000, 'KWD', 'USD', '3.25')).toBe(325)
+  })
+
+  it('rounds half away from zero', () => {
+    expect(convertMinor(1, 'USD', 'INR', '0.5')).toBe(1)
+    expect(convertMinor(1, 'USD', 'INR', '0.49')).toBe(0)
+    expect(convertMinor(-1, 'USD', 'INR', '0.5')).toBe(-1)
+    expect(convertMinor(-1, 'USD', 'INR', '0.4')).toBe(0)
+    expect(Object.is(convertMinor(-1, 'USD', 'INR', '0.4'), 0)).toBe(true)
+  })
+
+  it('is exact for large amounts', () => {
+    expect(convertMinor(900719925474099, 'USD', 'USD', '1')).toBe(900719925474099)
+  })
+
+  it('rejects invalid input', () => {
+    expect(() => convertMinor(100, 'USD', 'INR', '0')).toThrow(/exchange rate/)
+    expect(() => convertMinor(1.5, 'USD', 'INR', '1')).toThrow(/safe integer/)
+    expect(() => convertMinor(Number.MAX_SAFE_INTEGER, 'USD', 'INR', '2')).toThrow(/too large/)
   })
 })
