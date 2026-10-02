@@ -10,8 +10,8 @@ import {
 } from '../api'
 import { AVATAR_TYPES, profileSchema, type ProfileValues } from '../schemas'
 import type { AuthUser } from '../types'
-import { FormMessage } from './FormMessage'
-import { TextField } from './TextField'
+import { FormMessage } from '@/components/form/FormMessage'
+import { TextField } from '@/components/form/TextField'
 import { UserAvatar } from './UserAvatar'
 
 export function ProfileForm({ user }: { user: AuthUser }) {
