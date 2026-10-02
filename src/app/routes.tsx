@@ -72,6 +72,19 @@ export const routes: RouteObject[] = [
             }),
           },
           {
+            path: 'accounts',
+            lazy: async () => ({
+              Component: (await import('@/features/accounts/pages/AccountsPage')).AccountsPage,
+            }),
+          },
+          {
+            path: 'categories',
+            lazy: async () => ({
+              Component: (await import('@/features/categories/pages/CategoriesPage'))
+                .CategoriesPage,
+            }),
+          },
+          {
             path: 'budgets',
             lazy: async () => ({
               Component: (await import('@/features/budgets/pages/BudgetsPage')).BudgetsPage,

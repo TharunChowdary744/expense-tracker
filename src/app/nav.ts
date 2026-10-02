@@ -4,8 +4,10 @@ import {
   LayoutDashboard,
   Repeat,
   Settings,
+  Tags,
   Target,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -18,6 +20,8 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { to: '/accounts', label: 'Accounts', icon: Wallet },
+  { to: '/categories', label: 'Categories', icon: Tags },
   { to: '/budgets', label: 'Budgets', icon: Target },
   { to: '/recurring', label: 'Recurring', icon: Repeat },
   { to: '/groups', label: 'Groups', icon: Users },
