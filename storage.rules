@@ -1,8 +1,21 @@
 rules_version = '2';
 
-// PLACEHOLDER (phase 1): deny everything. Real, tested rules arrive with receipts.
+// Phase 2: only the profile photo at users/{uid}/avatar (owner only, images up to 2 MB).
+// Everything else stays denied until receipts arrive in a later phase.
 service firebase.storage {
   match /b/{bucket}/o {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid}/avatar {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.size <= 2 * 1024 * 1024
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'];
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

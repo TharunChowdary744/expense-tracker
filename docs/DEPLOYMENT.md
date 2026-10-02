@@ -2,11 +2,11 @@
 
 ## Branches and environments
 
-| Branch | Environment | Firebase project (suggested ID) | Deploys when |
-| --- | --- | --- | --- |
-| `develop` | `dev` | `ledgerly-dev` | a PR is merged into `develop` |
-| `test` | `test` | `ledgerly-test` | a PR from `develop` is merged into `test` |
-| `prod` | `prod` | `ledgerly-prod` | a PR from `test` is merged into `prod` |
+| Branch    | Environment | Firebase project (suggested ID) | Deploys when                              |
+| --------- | ----------- | ------------------------------- | ----------------------------------------- |
+| `develop` | `dev`       | `ledgerly-dev`                  | a PR is merged into `develop`             |
+| `test`    | `test`      | `ledgerly-test`                 | a PR from `develop` is merged into `test` |
+| `prod`    | `prod`      | `ledgerly-prod`                 | a PR from `test` is merged into `prod`    |
 
 Flow: `phase-<n>-<slug>` → PR → `develop` → PR → `test` → PR → `prod`.
 
@@ -18,17 +18,17 @@ Flow: `phase-<n>-<slug>` → PR → `develop` → PR → `test` → PR → `prod
 
 Secrets live in **GitHub Environments**, one set per environment, never in the repo. Each of `dev`, `test` and `prod` needs the same names with that project's values:
 
-| Secret | Where to find it |
-| --- | --- |
-| `VITE_FIREBASE_API_KEY` | Firebase console → Project settings → General → Your apps → Web app config |
-| `VITE_FIREBASE_AUTH_DOMAIN` | same config |
-| `VITE_FIREBASE_PROJECT_ID` | same config (also used as the deploy target) |
-| `VITE_FIREBASE_STORAGE_BUCKET` | same config |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | same config |
-| `VITE_FIREBASE_APP_ID` | same config |
-| `VITE_FIREBASE_MEASUREMENT_ID` | same config (only if Analytics is enabled; otherwise leave empty) |
-| `VITE_FIREBASE_VAPID_KEY` | Project settings → Cloud Messaging → Web Push certificates → key pair |
-| `FIREBASE_SERVICE_ACCOUNT` | full JSON key of a deploy service account (see below) |
+| Secret                              | Where to find it                                                           |
+| ----------------------------------- | -------------------------------------------------------------------------- |
+| `VITE_FIREBASE_API_KEY`             | Firebase console → Project settings → General → Your apps → Web app config |
+| `VITE_FIREBASE_AUTH_DOMAIN`         | same config                                                                |
+| `VITE_FIREBASE_PROJECT_ID`          | same config (also used as the deploy target)                               |
+| `VITE_FIREBASE_STORAGE_BUCKET`      | same config                                                                |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | same config                                                                |
+| `VITE_FIREBASE_APP_ID`              | same config                                                                |
+| `VITE_FIREBASE_MEASUREMENT_ID`      | same config (only if Analytics is enabled; otherwise leave empty)          |
+| `VITE_FIREBASE_VAPID_KEY`           | Project settings → Cloud Messaging → Web Push certificates → key pair      |
+| `FIREBASE_SERVICE_ACCOUNT`          | full JSON key of a deploy service account (see below)                      |
 
 The `VITE_*` web config values are shipped to the browser, so they are not truly secret; security comes from Firestore and Storage rules. Keeping them in Environments still keeps each environment's config in one place. `FIREBASE_SERVICE_ACCOUNT` **is** secret.
 

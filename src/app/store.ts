@@ -1,14 +1,21 @@
-import { configureStore } from '@reduxjs/toolkit'
+import { combineReducers, configureStore } from '@reduxjs/toolkit'
 import { setupListeners } from '@reduxjs/toolkit/query'
+import { authReducer } from '@/features/auth/slice'
 import { uiReducer } from '@/features/ui/slice'
 import { api } from '@/services/api'
 
-export function createStore() {
+const rootReducer = combineReducers({
+  [api.reducerPath]: api.reducer,
+  auth: authReducer,
+  ui: uiReducer,
+})
+
+export type RootState = ReturnType<typeof rootReducer>
+
+export function createStore(preloadedState?: Partial<RootState>) {
   const store = configureStore({
-    reducer: {
-      [api.reducerPath]: api.reducer,
-      ui: uiReducer,
-    },
+    reducer: rootReducer,
+    preloadedState,
     middleware: (getDefault) => getDefault().concat(api.middleware),
   })
   setupListeners(store.dispatch)
@@ -18,5 +25,4 @@ export function createStore() {
 export const store = createStore()
 
 export type AppStore = ReturnType<typeof createStore>
-export type RootState = ReturnType<AppStore['getState']>
 export type AppDispatch = AppStore['dispatch']

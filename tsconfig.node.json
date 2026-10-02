@@ -14,5 +14,11 @@
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "e2e"]
+  "include": [
+    "vite.config.ts",
+    "vitest.rules.config.ts",
+    "playwright.config.ts",
+    "e2e",
+    "rules-tests"
+  ]
 }

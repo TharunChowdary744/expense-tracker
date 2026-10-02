@@ -80,3 +80,31 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: '0'
           VITE_FIREBASE_APP_ID: ci-placeholder
         run: npm run build
+
+  rules:
+    name: Security rules tests (emulator)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect rules tests
+        id: rules
+        run: |
+          if [ -d rules-tests ] && [ -f package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "No rules tests yet; skipping."; fi
+
+      - uses: actions/setup-node@v4
+        if: steps.rules.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        if: steps.rules.outputs.present == 'true'
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - if: steps.rules.outputs.present == 'true'
+        run: npm ci
+      - if: steps.rules.outputs.present == 'true'
+        run: npm run test:rules
