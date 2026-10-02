@@ -1,12 +1,14 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit'
 import { setupListeners } from '@reduxjs/toolkit/query'
 import { authReducer } from '@/features/auth/slice'
+import { transactionsReducer } from '@/features/transactions/slice'
 import { uiReducer } from '@/features/ui/slice'
 import { api } from '@/services/api'
 
 const rootReducer = combineReducers({
   [api.reducerPath]: api.reducer,
   auth: authReducer,
+  transactions: transactionsReducer,
   ui: uiReducer,
 })
 
