@@ -1,54 +1,36 @@
 import { expect, test } from '@playwright/test'
 
-test('app loads and shows the dashboard', async ({ page }) => {
+// The app now requires sign-in. These smoke tests cover what works without a Firebase
+// backend: the signed-out shell. Signed-in flows are checked manually against the emulators
+// (see the phase 2 checklist) because they need the Auth and Firestore emulators.
+
+test('signed-out visitors land on the sign-in page', async ({ page }) => {
   await page.goto('/')
   await expect(page).toHaveTitle(/Ledgerly/)
-  await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible()
+  await expect(page).toHaveURL(/\/sign-in$/)
+  await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible()
 })
 
-test('navigation works', async ({ page, isMobile }) => {
-  await page.goto('/')
-  const nav = page.getByRole('navigation', { name: 'Main' }).filter({ visible: true })
-
-  await nav.getByRole('link', { name: 'Transactions' }).click()
-  await expect(page).toHaveURL(/\/transactions$/)
-  await expect(page.getByRole('heading', { name: 'Transactions', level: 1 })).toBeVisible()
-
-  if (isMobile) {
-    await nav.getByRole('button', { name: 'More' }).click()
-    await page.getByRole('menuitem', { name: 'Reports' }).click()
-  } else {
-    await nav.getByRole('link', { name: 'Reports' }).click()
-  }
-  await expect(page).toHaveURL(/\/reports$/)
-  await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible()
+test('a protected URL redirects to sign-in', async ({ page }) => {
+  await page.goto('/transactions')
+  await expect(page).toHaveURL(/\/sign-in$/)
 })
 
-test('unknown URL shows the 404 page', async ({ page }) => {
-  await page.goto('/definitely/not/a/page')
-  await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible()
+test('auth pages link to each other', async ({ page }) => {
+  await page.goto('/sign-in')
+  await page.getByRole('link', { name: 'Create an account' }).click()
+  await expect(page).toHaveURL(/\/sign-up$/)
+  await expect(page.getByRole('heading', { name: 'Create your account', level: 1 })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Sign in' }).click()
+  await page.getByRole('link', { name: 'Forgot password?' }).click()
+  await expect(page).toHaveURL(/\/forgot-password$/)
+  await expect(page.getByRole('heading', { name: 'Reset your password', level: 1 })).toBeVisible()
 })
 
-test('theme toggle switches and survives reload', async ({ page }) => {
-  await page.emulateMedia({ colorScheme: 'light' })
-  await page.goto('/')
-  const html = page.locator('html')
-  await expect(html).not.toHaveClass(/dark/)
-
-  await page.getByRole('button', { name: 'Change theme' }).click()
-  await page.getByRole('menuitemradio', { name: 'Dark' }).click()
-  await expect(html).toHaveClass(/dark/)
-
-  await page.reload()
-  await expect(html).toHaveClass(/dark/)
-
-  await page.getByRole('button', { name: 'Change theme' }).click()
-  await page.getByRole('menuitemradio', { name: 'Light' }).click()
-  await expect(html).not.toHaveClass(/dark/)
-})
-
-test('quick-add button is present and opens a dialog', async ({ page }) => {
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Quick add' }).click()
-  await expect(page.getByRole('dialog', { name: 'Quick add' })).toBeVisible()
+test('sign-in form validates before calling Firebase', async ({ page }) => {
+  await page.goto('/sign-in')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByText('Enter your email')).toBeVisible()
+  await expect(page.getByText('Enter your password')).toBeVisible()
 })
