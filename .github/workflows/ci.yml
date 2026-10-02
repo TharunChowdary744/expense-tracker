@@ -68,7 +68,7 @@ jobs:
       - if: steps.app.outputs.present == 'true'
         run: npm run typecheck
       - if: steps.app.outputs.present == 'true'
-        run: npm run test
+        run: npm run test:coverage
       - if: steps.app.outputs.present == 'true'
         name: Build (emulator config, no real secrets)
         env:
