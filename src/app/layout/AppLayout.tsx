@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router'
+import { useQuickAddShortcut } from '@/features/transactions/hooks/useQuickAddShortcut'
 import { GlobalDialogHost } from '@/features/ui/components/GlobalDialogHost'
 import { Toaster } from '@/features/ui/components/Toaster'
 import { PageSkeleton } from '../PageSkeleton'
@@ -9,6 +10,7 @@ import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 
 export function AppLayout() {
+  useQuickAddShortcut()
   return (
     <div className="min-h-dvh">
       <Sidebar />
