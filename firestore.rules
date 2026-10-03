@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Rules v5 (phase 6).
+// Rules v6 (phase 7).
 // - users/{uid} and everything below it is readable and writable only by that user.
 // - accounts and categories are also validated: required fields, field types, integer money
 //   amounts, server timestamps, and (for categories) a valid one-level parent.
@@ -12,8 +12,15 @@ rules_version = '2';
 // - recurring rules are validated, including their transaction template. A transaction posted by
 //   a rule must use the deterministic id `${recurringId}_${occurrenceKey}`, so an occurrence can
 //   only ever exist once, and those two fields can't change afterwards.
-// - Everything else is denied by default. Later phases add their own match blocks
-//   (groups, invites, ...) together with tests in rules-tests/.
+// - groups and their expenses, settlements and activity are readable and writable only by the
+//   group's current members (memberIds). Joining needs a valid invite; leaving and removal turn the
+//   member's entry into a "former" one (kept for history). Expense amounts are integers > 0, the
+//   paidBy/shares/splitInput keys must be current members, and sum(paidBy) == amount ==
+//   sum(shares) is checked entry by entry (groups have at most 20 members).
+// - invites/{token} can be read by anyone who knows the token; only group members create or
+//   revoke them, and an email invite is accepted once.
+// - A group member may leave one settle-up reminder per day in another member's notifications.
+// - Everything else is denied by default.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -309,7 +316,8 @@ service cloud.firestore {
       // ---- notifications ----
       match /notifications/{notificationId} {
         allow read, delete: if isOwner(uid);
-        allow create: if isOwner(uid) && isValidNotification(uid);
+        allow create: if (isOwner(uid) && isValidNotification(uid))
+          || isGroupReminder(uid, notificationId);
         // Only marking read/unread; everything else is fixed once created.
         allow update: if isOwner(uid)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'updatedAt'])
@@ -331,6 +339,41 @@ service cloud.firestore {
           && hasValidStamps(uid);
       }
 
+      // A settle-up reminder from another member of a shared group. The id is
+      // `remind_${groupId}_${senderUid}_${yyyymmdd}` (today in UTC), so each member can remind
+      // another at most once a day per group; the debtor can only mark it read.
+      function isGroupReminder(uid, notificationId) {
+        let parts = notificationId.split('_');
+        return request.auth != null
+          && parts.size() == 4
+          && parts[0] == 'remind'
+          && parts[2] == request.auth.uid
+          && request.auth.uid != uid
+          && parts[3].matches('^[0-9]{8}$')
+          && int(parts[3]) == request.time.year() * 10000 + request.time.month() * 100
+               + request.time.day()
+          && isReminderFor(uid, parts[1]);
+      }
+
+      function isReminderFor(uid, groupId) {
+        let group = get(/databases/$(database)/documents/groups/$(groupId)).data;
+        let d = request.resource.data;
+        return request.auth.uid in group.memberIds
+          && uid in group.memberIds
+          && d.keys().hasAll(['type', 'title', 'body', 'link', 'read', 'createdAt', 'updatedAt',
+                              'createdBy'])
+          && d.keys().hasOnly(['type', 'title', 'body', 'link', 'read', 'createdAt', 'updatedAt',
+                               'createdBy'])
+          && d.type == 'settle-reminder'
+          && d.title is string && d.title.size() >= 1 && d.title.size() <= 120
+          && d.body is string && d.body.size() <= 300
+          && d.link == '/groups/' + groupId
+          && d.read == false
+          && d.createdAt == request.time
+          && d.updatedAt == request.time
+          && d.createdBy == request.auth.uid;
+      }
+
       // ---- every other subcollection (validated in later phases) ----
       match /{collection}/{document=**} {
         allow read: if isOwner(uid);
@@ -338,6 +381,400 @@ service cloud.firestore {
           && !(collection in ['accounts', 'categories', 'transactions', 'budgets', 'notifications',
                               'recurring']);
       }
+    }
+
+    // ---- groups -------------------------------------------------------------------------------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function groupPath(groupId) {
+      return /databases/$(database)/documents/groups/$(groupId);
+    }
+
+    // Current members only: a removed or departed member is no longer in memberIds.
+    function isGroupMember(groupId) {
+      return signedIn() && request.auth.uid in get(groupPath(groupId)).data.memberIds;
+    }
+
+    // Membership after this write (a join writes its activity entry in the same transaction).
+    function isGroupMemberAfter(groupId) {
+      return signedIn() && request.auth.uid in getAfter(groupPath(groupId)).data.memberIds;
+    }
+
+    function isMemberEntry(m) {
+      return m is map
+        && m.keys().hasAll(['displayName', 'email', 'role'])
+        && m.keys().hasOnly(['displayName', 'email', 'role', 'joinedVia'])
+        && m.displayName is string && m.displayName.size() >= 1 && m.displayName.size() <= 80
+        && m.email is string && m.email.size() <= 120
+        && m.role in ['owner', 'member', 'former'];
+    }
+
+    function isGroupShape(d) {
+      return d.keys().hasAll(['name', 'emoji', 'currency', 'memberIds', 'members', 'ownerId',
+                              'invitedEmails', 'simplifyDebts', 'createdAt', 'updatedAt',
+                              'createdBy'])
+        && d.keys().hasOnly(['name', 'emoji', 'currency', 'memberIds', 'members', 'ownerId',
+                             'invitedEmails', 'simplifyDebts', 'createdAt', 'updatedAt',
+                             'createdBy'])
+        && isName(d.name)
+        && d.emoji is string && d.emoji.size() >= 1 && d.emoji.size() <= 16
+        && isCurrency(d.currency)
+        && d.memberIds is list && d.memberIds.size() >= 1 && d.memberIds.size() <= 20
+        && d.members is map
+        && d.ownerId in d.memberIds
+        && d.invitedEmails is list && d.invitedEmails.size() <= 50
+        && d.simplifyDebts is bool;
+    }
+
+    match /groups/{groupId} {
+      allow read: if signedIn() && resource != null && request.auth.uid in resource.data.memberIds;
+      allow create: if signedIn() && isNewGroup();
+      allow update: if signedIn()
+        && isGroupShape(request.resource.data)
+        && request.resource.data.updatedAt == request.time
+        && (isGroupEdit() || isJoin(groupId) || isLeave() || isRemovalByOwner());
+      allow delete: if false;
+
+      // ---- expenses ----
+      match /expenses/{expenseId} {
+        allow read, delete: if isGroupMember(groupId);
+        allow create, update: if isGroupMember(groupId) && isValidGroupExpense(groupId);
+      }
+
+      // ---- settlements (a payment from one member to another; delete to undo) ----
+      match /settlements/{settlementId} {
+        allow read, delete: if isGroupMember(groupId);
+        allow create: if isGroupMember(groupId) && isValidSettlement(groupId);
+        allow update: if false;
+      }
+
+      // ---- activity (append-only) ----
+      match /activity/{activityId} {
+        allow read: if isGroupMember(groupId);
+        allow create: if (isGroupMember(groupId) || isGroupMemberAfter(groupId))
+          && isValidActivity();
+        allow update, delete: if false;
+      }
+    }
+
+    // The creator is the only member and the owner.
+    function isNewGroup() {
+      let d = request.resource.data;
+      let uid = request.auth.uid;
+      return isGroupShape(d)
+        && d.memberIds == [uid]
+        && d.ownerId == uid
+        && d.members.keys().hasOnly([uid])
+        && isMemberEntry(d.members[uid])
+        && d.members[uid].role == 'owner'
+        && !('joinedVia' in d.members[uid])
+        && d.invitedEmails.size() == 0
+        && hasValidStamps(uid);
+    }
+
+    // Any member may rename the group, change its emoji, toggle simplify debts and manage
+    // pending email invites. The currency and membership don't change here.
+    function isGroupEdit() {
+      return request.auth.uid in resource.data.memberIds
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'emoji', 'simplifyDebts', 'invitedEmails', 'updatedAt']);
+    }
+
+    // A non-member adds only themselves, as a member, naming the invite they use.
+    function isJoin(groupId) {
+      let uid = request.auth.uid;
+      let before = resource.data;
+      let after = request.resource.data;
+      let email = request.auth.token.email.lower();
+      return !(uid in before.memberIds)
+        && after.diff(before).affectedKeys()
+             .hasOnly(['memberIds', 'members', 'invitedEmails', 'updatedAt'])
+        && after.memberIds == before.memberIds.concat([uid])
+        && after.members.diff(before.members).affectedKeys() == [uid].toSet()
+        && isMemberEntry(after.members[uid])
+        && after.members[uid].role == 'member'
+        && after.members[uid].email == email
+        && after.members[uid].joinedVia is string
+        && (after.invitedEmails == before.invitedEmails
+          || after.invitedEmails == before.invitedEmails.removeAll([email]))
+        && isUsableInvite(groupId, after.members[uid].joinedVia, before.invitedEmails, email);
+    }
+
+    // Link invites (no email) work for anyone until they expire. Email invites work once, for
+    // that verified address, while the email is still pending on the group (so revoking works).
+    function isUsableInvite(groupId, token, invitedEmails, email) {
+      let invite = get(/databases/$(database)/documents/invites/$(token)).data;
+      return invite.groupId == groupId
+        && invite.expiresAt > request.time
+        && (invite.invitedEmail == null
+          || (invite.invitedEmail == email
+            && request.auth.token.email_verified == true
+            && invite.get('acceptedBy', null) == null
+            && email in invitedEmails));
+    }
+
+    // A member leaves: removed from memberIds, their entry kept as "former". An owner leaving
+    // hands ownership to a remaining member in the same write. The last member can't leave.
+    function isLeave() {
+      let uid = request.auth.uid;
+      let before = resource.data;
+      let after = request.resource.data;
+      let changed = after.members.diff(before.members).affectedKeys();
+      return uid in before.memberIds
+        && after.memberIds.toSet() == before.memberIds.toSet().difference([uid].toSet())
+        && after.memberIds.size() == before.memberIds.size() - 1
+        && isFormerEntry(after.members[uid], before.members[uid])
+        && (before.ownerId != uid
+          ? after.diff(before).affectedKeys().hasOnly(['memberIds', 'members', 'updatedAt'])
+            && changed == [uid].toSet()
+          : after.diff(before).affectedKeys()
+              .hasOnly(['memberIds', 'members', 'ownerId', 'updatedAt'])
+            && changed == [uid, after.ownerId].toSet()
+            && isMemberEntry(after.members[after.ownerId])
+            && after.members[after.ownerId].role == 'owner'
+            && after.members[after.ownerId].displayName
+                 == before.members[after.ownerId].displayName
+            && after.members[after.ownerId].email == before.members[after.ownerId].email);
+    }
+
+    function isFormerEntry(m, was) {
+      return isMemberEntry(m)
+        && m.role == 'former'
+        && m.displayName == was.displayName
+        && m.email == was.email;
+    }
+
+    // The owner removes one other member; that member's entry is kept (marked former).
+    function isRemovalByOwner() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let removed = before.memberIds.toSet().difference(after.memberIds.toSet());
+      return before.ownerId == request.auth.uid
+        && after.diff(before).affectedKeys().hasOnly(['memberIds', 'members', 'updatedAt'])
+        && after.memberIds.toSet().difference(before.memberIds.toSet()).size() == 0
+        && after.memberIds.size() == before.memberIds.size() - 1
+        && removed.size() == 1
+        && !(request.auth.uid in removed)
+        && after.members.diff(before.members).changedKeys() == removed;
+    }
+
+    // Rules have no loops, so a map's values are checked by size, up to the 20-member limit.
+    // Returns their sum when every value is >= 1, otherwise -1. Callers also require the sum to
+    // be an int, which fails if any value is a float. Only the branch for the actual size is
+    // evaluated, keeping a 20-way split well inside the 1000-expression limit.
+    function sumOfParts(l) {
+      return l.size() <= 5 ? sumOfParts5(l)
+        : l.size() <= 10 ? sumOfParts10(l)
+        : l.size() <= 15 ? sumOfParts15(l)
+        : sumOfParts20(l);
+    }
+
+    function sumOfParts5(l) {
+      return
+        l.size() == 1 ? ((l[0] >= 1) ? l[0] : -1) :
+        l.size() == 2 ? ((l[0] >= 1 && l[1] >= 1) ? l[0] + l[1] : -1) :
+        l.size() == 3 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1) ? l[0] + l[1] + l[2] : -1) :
+        l.size() == 4 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1) ? l[0] + l[1] + l[2] +
+          l[3] : -1) :
+        l.size() == 5 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1) ? l[0] +
+          l[1] + l[2] + l[3] + l[4] : -1) :
+        -1;
+    }
+
+    function sumOfParts10(l) {
+      return
+        l.size() == 6 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1) ? l[0] + l[1] + l[2] + l[3] + l[4] + l[5] : -1) :
+        l.size() == 7 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 && l[5] >= 1
+          && l[6] >= 1) ? l[0] + l[1] + l[2] + l[3] + l[4] + l[5] + l[6] : -1) :
+        l.size() == 8 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 && l[5] >= 1
+          && l[6] >= 1 && l[7] >= 1) ? l[0] + l[1] + l[2] + l[3] + l[4] + l[5] + l[6] + l[7] : -1) :
+        l.size() == 9 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 && l[5] >= 1
+          && l[6] >= 1 && l[7] >= 1 && l[8] >= 1) ? l[0] + l[1] + l[2] + l[3] + l[4] + l[5] + l[6]
+          + l[7] + l[8] : -1) :
+        l.size() == 10 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1) ? l[0] + l[1] + l[2] + l[3]
+          + l[4] + l[5] + l[6] + l[7] + l[8] + l[9] : -1) :
+        -1;
+    }
+
+    function sumOfParts15(l) {
+      return
+        l.size() == 11 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1 && l[10] >= 1) ? l[0] + l[1]
+          + l[2] + l[3] + l[4] + l[5] + l[6] + l[7] + l[8] + l[9] + l[10] : -1) :
+        l.size() == 12 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1 && l[10] >= 1 && l[11] >= 1)
+          ? l[0] + l[1] + l[2] + l[3] + l[4] + l[5] + l[6] + l[7] + l[8] + l[9] + l[10] + l[11] :
+          -1) :
+        l.size() == 13 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1 && l[10] >= 1 && l[11] >= 1
+          && l[12] >= 1) ? l[0] + l[1] + l[2] + l[3] + l[4] + l[5] + l[6] + l[7] + l[8] + l[9] +
+          l[10] + l[11] + l[12] : -1) :
+        l.size() == 14 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1 && l[10] >= 1 && l[11] >= 1
+          && l[12] >= 1 && l[13] >= 1) ? l[0] + l[1] + l[2] + l[3] + l[4] + l[5] + l[6] + l[7] +
+          l[8] + l[9] + l[10] + l[11] + l[12] + l[13] : -1) :
+        l.size() == 15 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1 && l[10] >= 1 && l[11] >= 1
+          && l[12] >= 1 && l[13] >= 1 && l[14] >= 1) ? l[0] + l[1] + l[2] + l[3] + l[4] + l[5] +
+          l[6] + l[7] + l[8] + l[9] + l[10] + l[11] + l[12] + l[13] + l[14] : -1) :
+        -1;
+    }
+
+    function sumOfParts20(l) {
+      return
+        l.size() == 16 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1 && l[10] >= 1 && l[11] >= 1
+          && l[12] >= 1 && l[13] >= 1 && l[14] >= 1 && l[15] >= 1) ? l[0] + l[1] + l[2] + l[3] +
+          l[4] + l[5] + l[6] + l[7] + l[8] + l[9] + l[10] + l[11] + l[12] + l[13] + l[14] + l[15] :
+          -1) :
+        l.size() == 17 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1 && l[10] >= 1 && l[11] >= 1
+          && l[12] >= 1 && l[13] >= 1 && l[14] >= 1 && l[15] >= 1 && l[16] >= 1) ? l[0] + l[1] +
+          l[2] + l[3] + l[4] + l[5] + l[6] + l[7] + l[8] + l[9] + l[10] + l[11] + l[12] + l[13] +
+          l[14] + l[15] + l[16] : -1) :
+        l.size() == 18 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1 && l[10] >= 1 && l[11] >= 1
+          && l[12] >= 1 && l[13] >= 1 && l[14] >= 1 && l[15] >= 1 && l[16] >= 1 && l[17] >= 1) ?
+          l[0] + l[1] + l[2] + l[3] + l[4] + l[5] + l[6] + l[7] + l[8] + l[9] + l[10] + l[11] +
+          l[12] + l[13] + l[14] + l[15] + l[16] + l[17] : -1) :
+        l.size() == 19 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1 && l[10] >= 1 && l[11] >= 1
+          && l[12] >= 1 && l[13] >= 1 && l[14] >= 1 && l[15] >= 1 && l[16] >= 1 && l[17] >= 1 &&
+          l[18] >= 1) ? l[0] + l[1] + l[2] + l[3] + l[4] + l[5] + l[6] + l[7] + l[8] + l[9] + l[10]
+          + l[11] + l[12] + l[13] + l[14] + l[15] + l[16] + l[17] + l[18] : -1) :
+        l.size() == 20 ? ((l[0] >= 1 && l[1] >= 1 && l[2] >= 1 && l[3] >= 1 && l[4] >= 1 &&
+          l[5] >= 1 && l[6] >= 1 && l[7] >= 1 && l[8] >= 1 && l[9] >= 1 && l[10] >= 1 && l[11] >= 1
+          && l[12] >= 1 && l[13] >= 1 && l[14] >= 1 && l[15] >= 1 && l[16] >= 1 && l[17] >= 1 &&
+          l[18] >= 1 && l[19] >= 1) ? l[0] + l[1] + l[2] + l[3] + l[4] + l[5] + l[6] + l[7] + l[8]
+          + l[9] + l[10] + l[11] + l[12] + l[13] + l[14] + l[15] + l[16] + l[17] + l[18] + l[19] :
+          -1) :
+        -1;
+    }
+
+    function isPartsTotal(total, amount) {
+      return total is int && total == amount;
+    }
+
+    // Keys must be current members, unless the map is unchanged by an edit (so an old expense
+    // that involves a former member can still be edited in other ways).
+    function isMemberMap(m, previous, memberIds) {
+      return m is map
+        && m.size() >= 1 && m.size() <= 20
+        && (m == previous || m.keys().hasOnly(memberIds));
+    }
+
+    function isValidGroupExpense(groupId) {
+      let d = request.resource.data;
+      let before = resource == null ? {} : resource.data;
+      let group = get(groupPath(groupId)).data;
+      return d.keys().hasAll(['description', 'amount', 'currency', 'date', 'paidBy', 'splitType',
+                              'splitInput', 'shares', 'note', 'attachments', 'createdAt',
+                              'updatedAt', 'createdBy'])
+        && d.keys().hasOnly(['description', 'amount', 'currency', 'date', 'categoryId', 'paidBy',
+                             'splitType', 'splitInput', 'shares', 'note', 'attachments',
+                             'createdAt', 'updatedAt', 'createdBy'])
+        && d.description is string && d.description.size() >= 1 && d.description.size() <= 100
+        && isPositiveMoney(d.amount)
+        && d.currency == group.currency
+        && d.date is timestamp
+        && isOptionalString(d, 'categoryId', 40)
+        && d.note is string && d.note.size() <= 500
+        && d.attachments is list && d.attachments.size() <= 10
+        && d.splitType in ['equal', 'exact', 'percent', 'shares']
+        && isMemberMap(d.paidBy, before.get('paidBy', null), group.memberIds)
+        && isMemberMap(d.shares, before.get('shares', null), group.memberIds)
+        && isMemberMap(d.splitInput, before.get('splitInput', null), group.memberIds)
+        // The invariant: sum(paidBy) == amount == sum(shares), with every entry an integer >= 1.
+        && isPartsTotal(sumOfParts(d.paidBy.values()), d.amount)
+        && isPartsTotal(sumOfParts(d.shares.values()), d.amount)
+        && hasValidStamps(request.auth.uid);
+    }
+
+    function isValidSettlement(groupId) {
+      let d = request.resource.data;
+      let group = get(groupPath(groupId)).data;
+      return d.keys().hasAll(['fromUid', 'toUid', 'amount', 'date', 'note', 'createdAt',
+                              'updatedAt', 'createdBy'])
+        && d.keys().hasOnly(['fromUid', 'toUid', 'amount', 'date', 'note', 'createdAt',
+                             'updatedAt', 'createdBy'])
+        && d.fromUid in group.memberIds
+        && d.toUid in group.memberIds
+        && d.fromUid != d.toUid
+        && isPositiveMoney(d.amount)
+        && d.date is timestamp
+        && d.note is string && d.note.size() <= 200
+        && hasValidStamps(request.auth.uid);
+    }
+
+    function isValidActivity() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['actorUid', 'action', 'summary', 'createdAt', 'updatedAt',
+                              'createdBy'])
+        && d.keys().hasOnly(['actorUid', 'action', 'summary', 'createdAt', 'updatedAt',
+                             'createdBy'])
+        && d.actorUid == request.auth.uid
+        && d.action in ['group-created', 'group-updated', 'member-joined', 'member-left',
+                        'member-removed', 'expense-added', 'expense-edited', 'expense-deleted',
+                        'settlement-added', 'settlement-deleted']
+        && d.summary is string && d.summary.size() >= 1 && d.summary.size() <= 200
+        && hasValidStamps(request.auth.uid);
+    }
+
+    // ---- invites/{token} ----------------------------------------------------------------------
+
+    match /invites/{token} {
+      // The token is the secret: anyone who has the link can read that one invite.
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn()
+        && token.size() >= 20 && token.size() <= 64
+        && isValidInvite();
+      allow update: if signedIn() && isInviteAcceptance(token);
+      allow delete: if signedIn() && isGroupMember(resource.data.groupId);
+    }
+
+    function isValidInvite() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['groupId', 'groupName', 'groupEmoji', 'invitedEmail', 'invitedBy',
+                              'invitedByName', 'expiresAt', 'createdAt', 'updatedAt',
+                              'createdBy'])
+        && d.keys().hasOnly(['groupId', 'groupName', 'groupEmoji', 'invitedEmail', 'invitedBy',
+                             'invitedByName', 'expiresAt', 'createdAt', 'updatedAt',
+                             'createdBy'])
+        && d.groupId is string
+        && isGroupMember(d.groupId)
+        && d.invitedBy == request.auth.uid
+        && isName(d.groupName)
+        && d.groupEmoji is string && d.groupEmoji.size() >= 1 && d.groupEmoji.size() <= 16
+        && (d.invitedEmail == null
+          || (d.invitedEmail is string
+            && d.invitedEmail.size() <= 120
+            && d.invitedEmail.matches('^[^@\\s]+@[^@\\s]+$')
+            && d.invitedEmail == d.invitedEmail.lower()))
+        && d.invitedByName is string && d.invitedByName.size() <= 80
+        && d.expiresAt is timestamp
+        && d.expiresAt > request.time
+        && d.expiresAt <= request.time + duration.value(30, 'd')
+        && hasValidStamps(request.auth.uid);
+    }
+
+    // An email invite is marked accepted by the person who joined with it, in the same write.
+    function isInviteAcceptance(token) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let group = getAfter(groupPath(before.groupId)).data;
+      return before.invitedEmail != null
+        && before.get('acceptedBy', null) == null
+        && after.diff(before).affectedKeys().hasOnly(['acceptedBy', 'updatedAt'])
+        && after.acceptedBy == request.auth.uid
+        && after.updatedAt == request.time
+        && request.auth.uid in group.memberIds
+        && group.members[request.auth.uid].joinedVia == token;
     }
 
     match /{document=**} {
