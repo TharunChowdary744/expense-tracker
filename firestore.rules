@@ -1,11 +1,14 @@
 rules_version = '2';
 
-// Rules v3 (phase 4).
+// Rules v4 (phase 5).
 // - users/{uid} and everything below it is readable and writable only by that user.
 // - accounts and categories are also validated: required fields, field types, integer money
 //   amounts, server timestamps, and (for categories) a valid one-level parent.
 // - transactions are validated: type enum, integer amounts > 0, and references to the user's
 //   own accounts and categories (category kind must match the type).
+// - budgets are validated (period enum, positive integer amount, thresholds, categories list).
+// - notifications are created once (unread) and afterwards only `read` may change, so a
+//   threshold alert keyed by budget + period + threshold can't be recreated or rewritten.
 // - Everything else is denied by default. Later phases add their own match blocks
 //   (groups, invites, ...) together with tests in rules-tests/.
 service cloud.firestore {
@@ -183,10 +186,72 @@ service cloud.firestore {
                    .data.kind == d.type));
       }
 
+      // ---- budgets ----
+      match /budgets/{budgetId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && isValidBudget(uid);
+      }
+
+      function isValidBudget(uid) {
+        let d = request.resource.data;
+        return d.keys().hasAll(['name', 'period', 'categoryIds', 'amount', 'rollover',
+                                'alertThresholds', 'startDate', 'createdAt', 'updatedAt',
+                                'createdBy'])
+          && d.keys().hasOnly(['name', 'period', 'categoryIds', 'amount', 'rollover',
+                               'alertThresholds', 'startDate', 'createdAt', 'updatedAt',
+                               'createdBy'])
+          && isName(d.name)
+          && d.period in ['weekly', 'monthly']
+          // Empty means an overall budget (every expense).
+          && d.categoryIds is list && d.categoryIds.size() <= 50
+          && isPositiveMoney(d.amount)
+          && d.rollover is bool
+          && d.alertThresholds is list
+          && d.alertThresholds.size() >= 1 && d.alertThresholds.size() <= 5
+          && isThreshold(d.alertThresholds, 0)
+          && isThreshold(d.alertThresholds, 1)
+          && isThreshold(d.alertThresholds, 2)
+          && isThreshold(d.alertThresholds, 3)
+          && isThreshold(d.alertThresholds, 4)
+          && d.startDate is timestamp
+          && hasValidStamps(uid);
+      }
+
+      // Rules have no loops: each of the (at most 5) entries is checked by index.
+      function isThreshold(list, i) {
+        return list.size() <= i || (list[i] is int && list[i] >= 1 && list[i] <= 1000);
+      }
+
+      // ---- notifications ----
+      match /notifications/{notificationId} {
+        allow read, delete: if isOwner(uid);
+        allow create: if isOwner(uid) && isValidNotification(uid);
+        // Only marking read/unread; everything else is fixed once created.
+        allow update: if isOwner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'updatedAt'])
+          && request.resource.data.read is bool
+          && request.resource.data.updatedAt == request.time;
+      }
+
+      function isValidNotification(uid) {
+        let d = request.resource.data;
+        return d.keys().hasAll(['type', 'title', 'body', 'link', 'read', 'createdAt', 'updatedAt',
+                                'createdBy'])
+          && d.keys().hasOnly(['type', 'title', 'body', 'link', 'read', 'createdAt', 'updatedAt',
+                               'createdBy'])
+          && d.type is string && d.type.size() >= 1 && d.type.size() <= 40
+          && d.title is string && d.title.size() >= 1 && d.title.size() <= 120
+          && d.body is string && d.body.size() <= 300
+          && d.link is string && d.link.size() <= 200 && (d.link == '' || d.link.matches('^/.*'))
+          && d.read == false
+          && hasValidStamps(uid);
+      }
+
       // ---- every other subcollection (validated in later phases) ----
       match /{collection}/{document=**} {
         allow read: if isOwner(uid);
-        allow write: if isOwner(uid) && !(collection in ['accounts', 'categories', 'transactions']);
+        allow write: if isOwner(uid)
+          && !(collection in ['accounts', 'categories', 'transactions', 'budgets', 'notifications']);
       }
     }
 
