@@ -7,6 +7,7 @@ import {
   fromMinor,
   isMinor,
   isValidRate,
+  scaleMinor,
   toMinor,
 } from './money'
 
@@ -274,5 +275,22 @@ describe('convertMinor', () => {
     expect(() => convertMinor(100, 'USD', 'INR', '0')).toThrow(/exchange rate/)
     expect(() => convertMinor(1.5, 'USD', 'INR', '1')).toThrow(/safe integer/)
     expect(() => convertMinor(Number.MAX_SAFE_INTEGER, 'USD', 'INR', '2')).toThrow(/too large/)
+  })
+})
+
+describe('scaleMinor', () => {
+  it('scales exactly and rounds half away from zero', () => {
+    expect(scaleMinor(10000, 1461, 48)).toBe(304375)
+    expect(scaleMinor(1, 1, 2)).toBe(1)
+    expect(scaleMinor(-1, 1, 2)).toBe(-1)
+    expect(scaleMinor(1, 1, 3)).toBe(0)
+    expect(scaleMinor(0, 5, 7)).toBe(0)
+    expect(scaleMinor(99999, 12, 1)).toBe(1199988)
+  })
+
+  it('rejects bad input', () => {
+    expect(() => scaleMinor(1.5, 1, 1)).toThrow(RangeError)
+    expect(() => scaleMinor(1, 1, 0)).toThrow(RangeError)
+    expect(() => scaleMinor(Number.MAX_SAFE_INTEGER, 2, 1)).toThrow(RangeError)
   })
 })

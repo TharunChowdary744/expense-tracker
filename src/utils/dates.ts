@@ -104,3 +104,42 @@ export function formatCalendarDate(
 ): string {
   return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(toUtc(date))
 }
+
+/** Offset of `timeZone` from UTC at `instant`, in minutes (e.g. +330 for Asia/Kolkata). */
+export function timeZoneOffsetMinutes(instant: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(instant)
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0)
+  const wall = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour'),
+    get('minute'),
+    get('second'),
+  )
+  return Math.round((wall - Math.floor(instant.getTime() / 1000) * 1000) / 60_000)
+}
+
+/**
+ * The instant at which the wall clock in `timeZone` shows `hour`:00 on `date`. When that
+ * time doesn't exist (a daylight-saving gap), the first instant after the gap is used, so the
+ * result is always on `date` in that zone.
+ */
+export function zonedTime(date: string, timeZone: string, hour = 0): Date {
+  const utc = toUtc(date)
+  const guess = Date.UTC(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate(), hour)
+  const first = guess - timeZoneOffsetMinutes(new Date(guess), timeZone) * 60_000
+  const second = guess - timeZoneOffsetMinutes(new Date(first), timeZone) * 60_000
+  const candidate = new Date(second)
+  if (calendarDate(candidate, timeZone) === date) return candidate
+  return new Date(first)
+}
