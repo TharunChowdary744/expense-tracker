@@ -15,14 +15,7 @@ import { cancelUpload, discardDrafts, enqueueUpload, retryUpload } from '../queu
 import { MAX_ATTACHMENTS, MAX_FILE_BYTES, type Attachment } from '../schemas'
 import { selectUploadsFor } from '../slice'
 import type { ReceiptParent } from '../types'
-import {
-  fileProblem,
-  formatBytes,
-  isPdfType,
-  mergeAttachments,
-  receiptPrefix,
-  screenFiles,
-} from '../utils'
+import { fileProblem, isPdfType, mergeAttachments, receiptPrefix, screenFiles } from '../utils'
 import { AttachmentThumb } from './AttachmentThumb'
 import { Lightbox } from './Lightbox'
 
@@ -242,7 +235,7 @@ export function AttachmentsField({ parent, mode, onBusyChange }: Props) {
       <p id={`${fieldId}-hint`} className="text-xs text-muted-foreground">
         {full
           ? `That’s the most files you can attach (${MAX_ATTACHMENTS}).`
-          : `Photos or PDFs, up to ${formatBytes(MAX_FILE_BYTES)} each. Photos are compressed before upload.`}
+          : 'Photos or PDFs, up to 10 MB each. Photos are compressed before upload.'}
         {mode === 'saved' && ' Adding or deleting a file saves straight away.'}
         {!online && ' You’re offline: files upload when you’re back online.'}
       </p>

@@ -68,7 +68,7 @@ function LightboxContent({
   return (
     <DialogContent
       onKeyDown={onKeyDown}
-      className="top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 bg-black/95 p-0 text-white"
+      className="top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 bg-black p-0 text-white"
     >
       <div className="flex items-center gap-1 py-2 pr-12 pl-4">
         <div className="min-w-0 flex-1">
