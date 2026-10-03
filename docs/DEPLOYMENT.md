@@ -36,8 +36,13 @@ Local development uses `.env.local` (git-ignored), copied from `.env.example`.
 
 ## One-time setup (owner)
 
-1. **Create three Firebase projects** (`ledgerly-dev`, `ledgerly-test`, `ledgerly-prod`). In each: add a Web app, enable Authentication, Firestore, Storage and Cloud Messaging, and generate a Web Push key pair.
-2. **Create a deploy service account** in each project: Google Cloud console → IAM → Service accounts → Create. Grant `Firebase Admin` **and** `Service Usage Consumer` (or, narrower: `Firebase Hosting Admin`, `Firebase Rules Admin`, `Cloud Datastore Index Admin`, `Service Account User`, `Service Usage Consumer`). `firebase deploy` checks that each product's API is enabled before deploying it; without `Service Usage Consumer` it fails with `403 Permission denied to get service [firebasestorage.googleapis.com]`. Create a JSON key and download it.
+1. **Create three Firebase projects** (`ledgerly-dev`, `ledgerly-test`, `ledgerly-prod`). In each: add a Web app, enable Authentication, Firestore, Storage (Firebase console → Storage → Get started, which creates the default bucket the deploy needs) and Cloud Messaging, and generate a Web Push key pair.
+2. **Create a deploy service account** in each project: Google Cloud console → IAM → Service accounts → Create. Grant these roles, then create a JSON key and download it:
+   - Recommended: `Firebase Admin` and `Service Usage Consumer`.
+   - Narrower alternative: `Firebase Hosting Admin`, `Firebase Rules Admin`, `Cloud Datastore Index Admin`, `Cloud Storage for Firebase Admin`, `Service Account User`, `Service Usage Consumer`.
+   - Common `firebase deploy` errors this fixes:
+     - `403 Permission denied to get service [firebasestorage.googleapis.com]`: add `Service Usage Consumer`. The CLI checks that each product's API is enabled before deploying it.
+     - `403 Permission 'firebasestorage.defaultBucket.get' denied ... (or it may not exist)`: first make sure Storage is set up (Firebase console → Storage → Get started; new buckets need the Blaze plan). If it is, the account is missing `Firebase Admin` or `Cloud Storage for Firebase Admin`.
 3. **Create GitHub Environments**: repo → Settings → Environments → New environment, named exactly `dev`, `test`, `prod`. Add the secrets from the table to each.
    - On `prod`, add yourself under **Required reviewers** so production deploys wait for your approval.
    - Optionally restrict each environment's **Deployment branches** to its branch (`develop`, `test`, `prod`).
