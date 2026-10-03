@@ -415,14 +415,17 @@ export function TransactionForm(props: TransactionFormProps) {
           name="recurrence.enabled"
           render={({ field }) => (
             <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-              <label htmlFor="tx-recurring" className="text-sm font-medium">
-                Make recurring
-                <span className="block text-xs font-normal text-muted-foreground">
+              <div>
+                <label htmlFor="tx-recurring" className="text-sm font-medium">
+                  Make recurring
+                </label>
+                <p id="tx-recurring-hint" className="text-xs text-muted-foreground">
                   Repeat this on a schedule, starting on the date above.
-                </span>
-              </label>
+                </p>
+              </div>
               <Switch
                 id="tx-recurring"
+                aria-describedby="tx-recurring-hint"
                 checked={field.value === true}
                 onCheckedChange={field.onChange}
               />

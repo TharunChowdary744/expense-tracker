@@ -1,4 +1,9 @@
-import { addCalendarDays, calendarDate, calendarDaysBetween } from '@/utils/dates'
+import {
+  addCalendarDays,
+  calendarDate,
+  calendarDaysBetween,
+  formatCalendarDate,
+} from '@/utils/dates'
 import { scaleMinor } from '@/utils/money'
 import {
   nextOccurrence,
@@ -234,7 +239,7 @@ export function planRuleUpdate(
   if (scheduleChanged && startDate < floor) {
     return {
       ok: false,
-      message: `Posted occurrences stay as they are. Start the new schedule on or after ${floor}.`,
+      message: `Posted occurrences stay as they are. Start the new schedule on or after ${formatCalendarDate(floor, undefined, { day: 'numeric', month: 'short', year: 'numeric' })}.`,
     }
   }
   const from = scheduleChanged ? startDate : (oldNext ?? tomorrow)
