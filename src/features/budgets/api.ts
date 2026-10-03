@@ -37,9 +37,10 @@ import {
 } from '@/services/firestore'
 import { calendarDate, deviceTimeZone, localMidnight } from '@/utils/dates'
 import { alertLoadRange, alertMessage, planBudgetAlerts } from './alerts'
-import { periodContaining, type WeekStart } from './period'
+import type { WeekStart } from './period'
 import { budgetSchema, type BudgetFormValues } from './schemas'
 import type { Budget, PlannedAlert } from './types'
+import { initialStartDate } from './utils'
 
 const budgetsCol = (db: Firestore, uid: string) => collection(db, 'users', uid, 'budgets')
 const txCol = (db: Firestore, uid: string) => collection(db, 'users', uid, 'transactions')
@@ -230,10 +231,10 @@ export const budgetsApi = api.injectEndpoints({
       queryFn: ({ uid, values, weekStartsOn }, { dispatch }) =>
         firestoreWrite(dispatch, 'Could not create the budget', () => {
           const ref = doc(budgetsCol(getFirebase().db, uid))
-          const start = periodContaining(calendarDate(new Date()), values.period, weekStartsOn)
+          const start = initialStartDate(values.period, calendarDate(new Date()), weekStartsOn)
           const commit = setDoc(ref, {
             ...values,
-            startDate: Timestamp.fromDate(localMidnight(start.start)),
+            startDate: Timestamp.fromDate(localMidnight(start)),
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             createdBy: uid,
@@ -243,11 +244,24 @@ export const budgetsApi = api.injectEndpoints({
       invalidatesTags: [LIST],
     }),
 
-    updateBudget: build.mutation<null, { uid: string; id: string; values: BudgetFormValues }>({
-      queryFn: ({ uid, id, values }, { dispatch }) =>
+    /** Pass `weekStartsOn` when the period kind changes, so the start date is reset. */
+    updateBudget: build.mutation<
+      null,
+      { uid: string; id: string; values: BudgetFormValues; weekStartsOn?: WeekStart }
+    >({
+      queryFn: ({ uid, id, values, weekStartsOn }, { dispatch }) =>
         firestoreWrite(dispatch, 'Could not save the budget', () => ({
           commit: updateDoc(doc(budgetsCol(getFirebase().db, uid), id), {
             ...values,
+            ...(weekStartsOn === undefined
+              ? {}
+              : {
+                  startDate: Timestamp.fromDate(
+                    localMidnight(
+                      initialStartDate(values.period, calendarDate(new Date()), weekStartsOn),
+                    ),
+                  ),
+                }),
             updatedAt: serverTimestamp(),
           }),
           result: null,

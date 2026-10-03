@@ -25,7 +25,12 @@ export function BudgetDialog({ open, onOpenChange, budget, categories }: Props) 
 
   async function onSubmit(values: BudgetFormValues): Promise<string | null> {
     const result = budget
-      ? await updateBudget({ uid, id: budget.id, values })
+      ? await updateBudget({
+          uid,
+          id: budget.id,
+          values,
+          ...(values.period === budget.period ? {} : { weekStartsOn }),
+        })
       : await createBudget({ uid, values, weekStartsOn })
     if ('error' in result) return String(result.error)
     toast({ title: budget ? 'Budget saved' : 'Budget created', variant: 'success' })

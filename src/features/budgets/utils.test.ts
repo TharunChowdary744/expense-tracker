@@ -4,6 +4,7 @@ import {
   alertKey,
   computeBudgetStatus,
   expandCategoryIds,
+  initialStartDate,
   loadRange,
   percentOf,
   toneOf,
@@ -17,6 +18,7 @@ const food: StatusBudget = {
   categoryIds: ['food'],
   rollover: false,
   alertThresholds: [80, 100],
+  startDate: '2020-01-01T00:00:00.000Z',
 }
 const overall: StatusBudget = { ...food, categoryIds: [] }
 
@@ -272,6 +274,33 @@ describe('computeBudgetStatus: rollover', () => {
     expect(newYork).toMatchObject({ carryOver: 400_000, spent: 0 })
   })
 
+  it('never carries from a period that ended before the budget start date', () => {
+    // Started 1 Sep: September can carry into October, August can't carry into September.
+    const started = { ...rolling, startDate: '2026-09-01T00:00:00.000Z' }
+    const txs = [tx('2026-09-10T10:00:00Z', 200_000)]
+    expect(computeBudgetStatus(started, txs, oct, opts).carryOver).toBe(300_000)
+    const sep = shiftPeriod(oct, -1)
+    expect(computeBudgetStatus(started, txs, sep, opts)).toMatchObject({
+      carryOver: 0,
+      limit: 500_000,
+      spent: 200_000,
+    })
+  })
+
+  it('reads the start date in the user timezone', () => {
+    // Local midnight 1 Sep in India is 31 Aug 18:30 UTC.
+    const started = { ...rolling, startDate: '2026-08-31T18:30:00.000Z' }
+    const sep = shiftPeriod(oct, -1)
+    expect(
+      computeBudgetStatus(started, [], sep, { today: '2026-10-15', timeZone: 'Asia/Kolkata' })
+        .carryOver,
+    ).toBe(0)
+    expect(
+      computeBudgetStatus(started, [], oct, { today: '2026-10-15', timeZone: 'Asia/Kolkata' })
+        .carryOver,
+    ).toBe(500_000)
+  })
+
   it('rolls over weekly budgets from the previous week', () => {
     const week = periodContaining('2026-10-03', 'weekly', 1) // Mon 28 Sep – Sun 4 Oct
     const s = computeBudgetStatus(
@@ -356,6 +385,15 @@ describe('computeBudgetStatus: days left, allowance and projection', () => {
     expect(s.byDay[1]).toEqual({ date: '2026-10-02', amount: 3_000 })
     expect(s.byDay[4]).toEqual({ date: '2026-10-05', amount: 4_000 })
     expect(s.byDay.reduce((sum, d) => sum + d.amount, 0)).toBe(s.spent)
+  })
+})
+
+describe('initialStartDate', () => {
+  it('is the start of the previous period', () => {
+    expect(initialStartDate('monthly', '2026-10-03', 1)).toBe('2026-09-01')
+    expect(initialStartDate('monthly', '2026-01-15', 1)).toBe('2025-12-01')
+    expect(initialStartDate('weekly', '2026-10-03', 1)).toBe('2026-09-21')
+    expect(initialStartDate('weekly', '2026-10-04', 0)).toBe('2026-09-27')
   })
 })
 

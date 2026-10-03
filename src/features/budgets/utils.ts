@@ -1,6 +1,14 @@
 import type { Category } from '@/features/categories/types'
 import { calendarDate, calendarDaysBetween } from '@/utils/dates'
-import { inPeriod, periodDays, periodLength, shiftPeriod, type Period } from './period'
+import {
+  inPeriod,
+  periodContaining,
+  periodDays,
+  periodLength,
+  shiftPeriod,
+  type Period,
+  type WeekStart,
+} from './period'
 import type { BudgetDoc } from './schemas'
 
 /** Below this share of the limit a budget is green; from it up to 100% amber; above, red. */
@@ -11,7 +19,7 @@ export type PeriodTiming = 'past' | 'current' | 'future'
 
 export type StatusBudget = Pick<
   BudgetDoc,
-  'amount' | 'categoryIds' | 'rollover' | 'alertThresholds'
+  'amount' | 'categoryIds' | 'rollover' | 'alertThresholds' | 'startDate'
 >
 
 /** The transaction fields budget maths needs. */
@@ -107,7 +115,8 @@ export function toneOf(spent: number, limit: number): BudgetTone {
  * `transactions` may hold anything (other types, other periods); only expenses in the budget's
  * categories whose date falls in the period count. With rollover, pass the previous period's
  * transactions too: its leftover (budget amount − spend, negative when overspent) is added to
- * this period's limit. Rollover carries one period only. Amounts are base-currency minor units.
+ * this period's limit. Rollover carries one period only, and never from a period that ended
+ * before the budget's `startDate`. Amounts are base-currency minor units.
  */
 export function computeBudgetStatus<T extends StatusTransaction>(
   budget: StatusBudget,
@@ -117,7 +126,9 @@ export function computeBudgetStatus<T extends StatusTransaction>(
 ): BudgetStatus<T> {
   const { today, timeZone } = options
   const categoryIds = options.categoryIds ?? new Set(budget.categoryIds)
-  const previous = budget.rollover ? shiftPeriod(period, -1) : null
+  const before = shiftPeriod(period, -1)
+  const previous =
+    budget.rollover && before.end > calendarDate(budget.startDate, timeZone) ? before : null
 
   const counted: { tx: T; day: string }[] = []
   let previousSpent = 0
@@ -191,6 +202,19 @@ export function loadRange(
     if (p.end > end) end = p.end
   }
   return { start, end }
+}
+
+/**
+ * The `startDate` stored for a new budget (or one whose period kind changes): the start of the
+ * period before the current one, so with rollover last period's leftover applies at once,
+ * while older periods never carry anything in.
+ */
+export function initialStartDate(
+  kind: Period['kind'],
+  today: string,
+  weekStartsOn: WeekStart,
+): string {
+  return shiftPeriod(periodContaining(today, kind, weekStartsOn), -1).start
 }
 
 /** Dedupe key (and notification doc id) for one budget, period and threshold. */

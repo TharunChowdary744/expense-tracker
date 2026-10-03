@@ -20,7 +20,7 @@ function budget(overrides: Partial<Budget> = {}): Budget {
     amount: 500_000,
     rollover: false,
     alertThresholds: [80, 100],
-    startDate: '2026-10-01T00:00:00.000Z',
+    startDate: '2026-09-01T00:00:00.000Z',
     createdAt: '2026-10-01T00:00:00.000Z',
     updatedAt: '2026-10-01T00:00:00.000Z',
     createdBy: 'alice',
