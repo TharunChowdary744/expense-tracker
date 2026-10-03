@@ -1,6 +1,7 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit'
 import { setupListeners } from '@reduxjs/toolkit/query'
 import { authReducer } from '@/features/auth/slice'
+import { budgetAlerts } from '@/features/budgets/listener'
 import { transactionsReducer } from '@/features/transactions/slice'
 import { uiReducer } from '@/features/ui/slice'
 import { api } from '@/services/api'
@@ -18,7 +19,8 @@ export function createStore(preloadedState?: Partial<RootState>) {
   const store = configureStore({
     reducer: rootReducer,
     preloadedState,
-    middleware: (getDefault) => getDefault().concat(api.middleware),
+    middleware: (getDefault) =>
+      getDefault().prepend(budgetAlerts.middleware).concat(api.middleware),
   })
   setupListeners(store.dispatch)
   return store
