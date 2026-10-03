@@ -9,6 +9,8 @@ import {
   isCalendarDate,
   localMidnight,
   startOfCalendarMonth,
+  timeZoneOffsetMinutes,
+  zonedTime,
 } from './dates'
 
 describe('calendarDate', () => {
@@ -66,5 +68,58 @@ describe('calendar arithmetic', () => {
     const midnight = localMidnight('2026-10-01')
     expect([midnight.getFullYear(), midnight.getMonth(), midnight.getDate()]).toEqual([2026, 9, 1])
     expect(midnight.getHours()).toBe(0)
+  })
+})
+
+describe('zonedTime', () => {
+  it('finds local midnight in fixed and DST zones', () => {
+    expect(zonedTime('2026-10-03', 'Asia/Kolkata').toISOString()).toBe('2026-10-02T18:30:00.000Z')
+    expect(zonedTime('2026-10-03', 'UTC').toISOString()).toBe('2026-10-03T00:00:00.000Z')
+    // New York: EDT (UTC-4) in summer, EST (UTC-5) in winter.
+    expect(zonedTime('2026-07-01', 'America/New_York').toISOString()).toBe(
+      '2026-07-01T04:00:00.000Z',
+    )
+    expect(zonedTime('2026-12-01', 'America/New_York').toISOString()).toBe(
+      '2026-12-01T05:00:00.000Z',
+    )
+  })
+
+  it('handles the days clocks change', () => {
+    // 8 Mar 2026: New York springs forward at 02:00, midnight still exists.
+    expect(zonedTime('2026-03-08', 'America/New_York').toISOString()).toBe(
+      '2026-03-08T05:00:00.000Z',
+    )
+    expect(zonedTime('2026-03-08', 'America/New_York', 12).toISOString()).toBe(
+      '2026-03-08T16:00:00.000Z',
+    )
+    // 1 Nov 2026: falls back at 02:00.
+    expect(zonedTime('2026-11-01', 'America/New_York', 12).toISOString()).toBe(
+      '2026-11-01T17:00:00.000Z',
+    )
+    // London's clocks change at 01:00 UTC on 29 Mar 2026.
+    expect(zonedTime('2026-03-29', 'Europe/London', 12).toISOString()).toBe(
+      '2026-03-29T11:00:00.000Z',
+    )
+  })
+
+  it('uses the first instant after a gap at midnight', () => {
+    // Santiago skips 00:00–00:59 on 6 Sep 2026 (UTC-4 → UTC-3).
+    const instant = zonedTime('2026-09-06', 'America/Santiago')
+    expect(calendarDate(instant, 'America/Santiago')).toBe('2026-09-06')
+    expect(instant.toISOString()).toBe('2026-09-06T04:00:00.000Z')
+  })
+
+  it('always lands on the requested calendar date', () => {
+    for (const zone of ['Pacific/Kiritimati', 'Pacific/Pago_Pago', 'Asia/Kathmandu']) {
+      for (const date of ['2026-01-01', '2026-02-28', '2028-02-29', '2026-12-31']) {
+        expect(calendarDate(zonedTime(date, zone), zone)).toBe(date)
+        expect(calendarDate(zonedTime(date, zone, 12), zone)).toBe(date)
+      }
+    }
+  })
+
+  it('reports offsets', () => {
+    expect(timeZoneOffsetMinutes(new Date('2026-01-01T00:00:00Z'), 'Asia/Kolkata')).toBe(330)
+    expect(timeZoneOffsetMinutes(new Date('2026-01-01T00:00:00Z'), 'America/New_York')).toBe(-300)
   })
 })

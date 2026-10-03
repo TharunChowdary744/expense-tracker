@@ -58,6 +58,17 @@ There is no custom server. Anything that must be trusted is enforced by security
 - **Data:** one live query per page for expenses in the needed date range (`type == expense`, date range; uses the existing type + date index).
 - **Alerts:** a listener middleware (`features/budgets/listener.ts`) runs after every transaction create, edit, delete or re-categorise. It checks the current period plus the periods of the written dates and creates missing `users/{uid}/notifications/budget_<budgetId>_<periodKey>_<threshold>` docs, then shows a toast. The doc id is the dedupe key; rules make notifications create-once with only `read` editable afterwards. Respects `notificationPrefs.budgetAlerts`.
 
+## Recurring transactions
+
+- **Engine:** `features/recurring/engine.ts` is pure and works on calendar dates only (`occurrencesBetween`, `nextOccurrence`). Monthly days past a month's end fall on its last day (31 → 30 Apr, 28/29 Feb) without drifting; `byMonthDay: -1` is the last day; yearly 29 Feb falls on 28 Feb in common years. `maxOccurrences` counts from the start and includes skipped occurrences.
+- **Timezone:** each rule stores the `timeZone` it was created in. `startDate`, `endDate` and `nextRunAt` are Timestamps at local midnight in that zone (`zonedTime`), read back as calendar dates in the same zone, so travel or DST never moves an occurrence. An occurrence is due from its local midnight and is posted at local noon.
+- **`nextRunAt`** is when the first occurrence that is neither posted nor skipped becomes due; `null` means the schedule has ended. Skipped keys before it are pruned.
+- **Catch-up runner:** `useRecurringRunner` (mounted in `AppLayout`) runs on start, when the tab becomes visible, when the browser comes back online and every 15 minutes. For each auto rule with `nextRunAt <= now` it calls `runRule` (`features/recurring/runner.ts`): one `runTransaction` that re-reads the rule, reads every due occurrence's doc `${ruleId}_${occurrenceKey}`, creates the missing ones with the account `txTotal` increments, and advances `nextRunAt`. At most 100 per run; the rest waits for the next wake-up and the toast says so. Two tabs or devices racing on the same rule can't double-post: the loser is retried (or refused by the rules, then retried) and finds the docs.
+- **Remind mode:** occurrences wait in Recurring › Upcoming & due. Confirm and Skip are transactions too; Confirm can change the amount (the rule's FX rate is kept). Out-of-order confirms are found by id (`in` query, 30 per request).
+- **Editing** is "this and future": the template and schedule change for occurrences not yet posted. Changing the pattern or start restarts the schedule from the new start, which can't be before the next unhandled occurrence (or today). Posted transactions are never touched.
+- **Budget alerts** run after catch-up posts and confirms (the budgets listener also matches `runRecurring` and `confirmOccurrence`).
+- **Rules:** `recurring` docs and their template are validated; a transaction with `recurringId` must have the id `${recurringId}_${occurrenceKey}`, and those fields can't change.
+
 ## Data ownership
 
 - `users/{uid}/**` is private to that user.

@@ -193,3 +193,21 @@ export function convertMinor(amountMinor: number, from: string, to: string, rate
   const value = Number(result)
   return amountMinor < 0 && value !== 0 ? -value : value
 }
+
+/**
+ * `amountMinor × num ÷ den`, rounded half away from zero, without floats. Used for
+ * equivalents such as a recurring cost per month: scaleMinor(10000, 1461, 48) → 304375.
+ */
+export function scaleMinor(amountMinor: number, num: number, den: number): number {
+  assertMinor(amountMinor)
+  if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den) || num < 0 || den <= 0) {
+    throw new RangeError('scaleMinor needs a non-negative integer ratio with a positive divisor')
+  }
+  const product = BigInt(Math.abs(amountMinor)) * BigInt(num)
+  const bigDen = BigInt(den)
+  let result = product / bigDen
+  if ((product % bigDen) * 2n >= bigDen) result += 1n
+  if (result > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('Amount is too large')
+  const value = Number(result)
+  return amountMinor < 0 && value !== 0 ? -value : value
+}

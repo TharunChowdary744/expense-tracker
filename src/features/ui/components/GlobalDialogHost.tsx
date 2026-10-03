@@ -18,7 +18,10 @@ const TransactionSheet = lazy(async () => ({
 export function GlobalDialogHost() {
   const dialog = useAppSelector((s) => s.ui.dialog)
   const dispatch = useAppDispatch()
-  const isTransaction = dialog?.kind === 'quick-add' || dialog?.kind === 'edit-transaction'
+  const isTransaction =
+    dialog?.kind === 'quick-add' ||
+    dialog?.kind === 'edit-transaction' ||
+    dialog?.kind === 'edit-recurring'
 
   return (
     <>

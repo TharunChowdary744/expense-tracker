@@ -186,4 +186,16 @@ describe('affectedDates', () => {
     ).toEqual(['a', 'b'])
     expect(affectedDates(action('recategorizeTransactions', { ids: ['x'] }))).toEqual([])
   })
+
+  it('reads the dates recurring posts wrote from the result', () => {
+    expect(
+      affectedDates({
+        ...action('runRecurring', { ruleId: 'r' }),
+        payload: { postedDates: ['a', 'b'] },
+      }),
+    ).toEqual(['a', 'b'])
+    expect(
+      affectedDates({ ...action('confirmOccurrence', { key: 'k' }), payload: { dateIso: 'c' } }),
+    ).toEqual(['c'])
+  })
 })
