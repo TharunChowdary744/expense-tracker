@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
+import { useLocation } from 'react-router'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,6 +19,13 @@ const TransactionSheet = lazy(async () => ({
 export function GlobalDialogHost() {
   const dialog = useAppSelector((s) => s.ui.dialog)
   const dispatch = useAppDispatch()
+  const { pathname } = useLocation()
+  // The group page renders its own add-expense sheet; drop the request if it's left behind.
+  const strandedGroupExpense =
+    dialog?.kind === 'group-expense' && pathname !== `/groups/${dialog.groupId}`
+  useEffect(() => {
+    if (strandedGroupExpense) dispatch(dialogClosed())
+  }, [strandedGroupExpense, dispatch])
   const isTransaction =
     dialog?.kind === 'quick-add' ||
     dialog?.kind === 'edit-transaction' ||

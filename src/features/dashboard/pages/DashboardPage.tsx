@@ -1,11 +1,15 @@
 import { LayoutDashboard } from 'lucide-react'
+import { GroupsSummaryCard } from '@/features/groups/components/GroupsSummaryCard'
 import { BillsDueWidget } from '@/features/recurring/components/BillsDueWidget'
 
 export function DashboardPage() {
   return (
     <section className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-      <BillsDueWidget />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <GroupsSummaryCard />
+        <BillsDueWidget />
+      </div>
       <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-10 text-center">
         <LayoutDashboard className="size-10 text-muted-foreground" aria-hidden />
         <p className="text-sm text-muted-foreground">
