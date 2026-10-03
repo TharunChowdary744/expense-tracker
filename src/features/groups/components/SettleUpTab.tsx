@@ -12,7 +12,7 @@ import { useActor } from '../hooks/useActor'
 import type { Group, GroupExpense, Settlement } from '../types'
 import { activity, debtSentence, memberLabel, memberName } from '../utils'
 import { actorName } from '../writes'
-import { ConfirmDialog } from './ConfirmDialog'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { SettlementDialog } from './SettlementDialog'
 
 interface Props {

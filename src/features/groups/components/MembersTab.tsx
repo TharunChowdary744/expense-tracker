@@ -14,7 +14,7 @@ import { netBalances } from '../balances'
 import { useActor } from '../hooks/useActor'
 import type { Group, GroupExpense, Settlement } from '../types'
 import { memberName, nextOwner, orderedMemberIds } from '../utils'
-import { ConfirmDialog } from './ConfirmDialog'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { InviteDialog } from './InviteDialog'
 
 interface Props {

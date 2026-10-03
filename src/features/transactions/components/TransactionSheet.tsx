@@ -1,10 +1,15 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { ListSkeleton } from '@/components/ListStates'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { useGetAccountsQuery } from '@/features/accounts/api'
 import { useUid } from '@/features/auth/hooks'
 import { useGetCategoriesQuery } from '@/features/categories/api'
+import { AttachmentsField } from '@/features/receipts/components/AttachmentsField'
+import { commitDrafts } from '@/features/receipts/queue'
+import { selectUploadsFor } from '@/features/receipts/slice'
+import type { ReceiptParent } from '@/features/receipts/types'
+import { receiptPrefix } from '@/features/receipts/utils'
 import { useCreateRecurringMutation, useUpdateRecurringMutation } from '@/features/recurring/api'
 import type { RecurringRule } from '@/features/recurring/types'
 import { earliestNewStart } from '@/features/recurring/utils'
@@ -12,7 +17,11 @@ import { useUserSettings } from '@/features/settings/hooks'
 import { useToast } from '@/features/ui/hooks'
 import { dialogClosed } from '@/features/ui/slice'
 import { deviceTimeZone, formatCalendarDate } from '@/utils/dates'
-import { useCreateTransactionMutation, useUpdateTransactionMutation } from '../api'
+import {
+  newTransactionId,
+  useCreateTransactionMutation,
+  useUpdateTransactionMutation,
+} from '../api'
 import { loadPrefs, rememberTransaction } from '../prefs'
 import { TRANSACTION_TYPE_LABELS, type TransactionFormValues } from '../schemas'
 import type { Transaction } from '../types'
@@ -105,6 +114,13 @@ function SheetBody({
   const [updateRecurring] = useUpdateRecurringMutation()
   // Read once per open; saving updates them for next time.
   const prefs = useMemo(() => loadPrefs(uid), [uid])
+  const editingTx = initial !== undefined && !duplicate
+  // A new transaction gets its id now, so receipts can upload while the form is filled in.
+  const [txId] = useState(() => (editingTx ? initial.id : newTransactionId(uid)))
+  const parent = useMemo<ReceiptParent>(() => ({ kind: 'tx', uid, id: txId }), [uid, txId])
+  const prefix = receiptPrefix(parent)
+  const draftUploads = useAppSelector((s) => selectUploadsFor(s, prefix))
+  const [preparingFiles, setPreparingFiles] = useState(false)
   const currencies = useMemo(
     () => Object.fromEntries((accounts.data ?? []).map((a) => [a.id, a.currency])),
     [accounts.data],
@@ -146,13 +162,24 @@ function SheetBody({
   async function onSubmit(values: TransactionFormValues): Promise<string | null> {
     if (values.recurrence) return onSubmitRecurring({ ...values, recurrence: values.recurrence })
     const editing = initial && !duplicate
+    if (!editing && preparingFiles) return 'Wait for the receipts to finish compressing.'
     // Keep the original time of day when the date is unchanged, so ordering stays stable.
     const keepTime = editing && dayKey(initial.date) === values.date ? initial.date : undefined
     const dateIso = dateInputToIso(values.date, keepTime)
     const result = editing
       ? await updateTransaction({ uid, before: initial, values, dateIso, currencies })
-      : await createTransaction({ uid, values, dateIso, currencies })
+      : await createTransaction({
+          uid,
+          values,
+          dateIso,
+          currencies,
+          id: txId,
+          attachments: draftUploads
+            .filter((u) => u.draft && u.status !== 'failed')
+            .map((u) => u.attachment),
+        })
     if ('error' in result) return String(result.error)
+    if (!editing) commitDrafts(prefix)
     rememberTransaction(uid, values, baseCurrency)
     toast({
       title: editing ? 'Transaction saved' : `${TRANSACTION_TYPE_LABELS[values.type]} added`,
@@ -178,6 +205,13 @@ function SheetBody({
         rule
           ? `A changed schedule can start on ${formatCalendarDate(earliestNewStart(rule), locale, { day: 'numeric', month: 'short', year: 'numeric' })} or later.`
           : undefined
+      }
+      attachments={
+        <AttachmentsField
+          parent={parent}
+          mode={editingTx ? 'saved' : 'draft'}
+          onBusyChange={setPreparingFiles}
+        />
       }
       onSubmit={onSubmit}
       onCancel={onDone}

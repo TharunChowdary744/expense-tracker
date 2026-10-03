@@ -1,20 +1,30 @@
 import { useMemo, useState } from 'react'
+import { useAppSelector } from '@/app/hooks'
 import { ListSkeleton } from '@/components/ListStates'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { useGetAccountsQuery } from '@/features/accounts/api'
 import { useGetCategoriesQuery } from '@/features/categories/api'
+import { AttachmentsField } from '@/features/receipts/components/AttachmentsField'
+import { commitDrafts } from '@/features/receipts/queue'
+import { selectUploadsFor } from '@/features/receipts/slice'
+import type { ReceiptParent } from '@/features/receipts/types'
+import { receiptPrefix } from '@/features/receipts/utils'
 import { useUserSettings } from '@/features/settings/hooks'
 import { useToast } from '@/features/ui/hooks'
 import { deviceTimeZone, zonedTime } from '@/utils/dates'
 import { formatMoney } from '@/utils/money'
-import { useDeleteGroupExpenseMutation, useSaveGroupExpenseMutation } from '../api'
+import {
+  newGroupExpenseId,
+  useDeleteGroupExpenseMutation,
+  useSaveGroupExpenseMutation,
+} from '../api'
 import { useActor } from '../hooks/useActor'
 import type { GroupExpenseFormValues } from '../schemas'
 import { orderMembers } from '../split'
 import type { Group, GroupExpense } from '../types'
 import { activity, orderedMemberIds } from '../utils'
 import { actorName } from '../writes'
-import { ConfirmDialog } from './ConfirmDialog'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ExpenseForm } from './ExpenseForm'
 
 interface Props {
@@ -71,6 +81,15 @@ function ExpenseSheetBody({
   const [saveExpense] = useSaveGroupExpenseMutation()
   const [deleteExpense] = useDeleteGroupExpenseMutation()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  // A new expense gets its id now, so receipts can upload while the form is filled in.
+  const [expenseId] = useState(() => expense?.id ?? newGroupExpenseId(group.id))
+  const parent = useMemo<ReceiptParent>(
+    () => ({ kind: 'group', uid: actor.uid, groupId: group.id, id: expenseId }),
+    [actor.uid, group.id, expenseId],
+  )
+  const prefix = receiptPrefix(parent)
+  const uploads = useAppSelector((s) => selectUploadsFor(s, prefix))
+  const [preparingFiles, setPreparingFiles] = useState(false)
 
   // Current members, plus anyone already in this expense (e.g. a former member).
   const memberIds = useMemo(() => {
@@ -88,11 +107,19 @@ function ExpenseSheetBody({
   const name = actorName(actor)
 
   async function onSubmit(values: GroupExpenseFormValues): Promise<string | null> {
+    if (!expense && preparingFiles) return 'Wait for the receipts to finish compressing.'
     const currencies = Object.fromEntries((accounts.data ?? []).map((a) => [a.id, a.currency]))
     const result = await saveExpense({
       actor,
       group: { id: group.id, name: group.name },
-      ...(expense ? { expenseId: expense.id } : {}),
+      ...(expense
+        ? { expenseId: expense.id }
+        : {
+            newExpenseId: expenseId,
+            attachments: uploads
+              .filter((u) => u.draft && u.status !== 'failed')
+              .map((u) => u.attachment),
+          }),
       values,
       dateIso: zonedTime(values.date, deviceTimeZone(), EXPENSE_HOUR).toISOString(),
       summary: (expense ? activity.expenseEdited : activity.expenseAdded)(
@@ -103,6 +130,7 @@ function ExpenseSheetBody({
       accountCurrencies: currencies,
     })
     if ('error' in result) return String(result.error)
+    if (!expense) commitDrafts(prefix)
     toast({
       title: expense ? 'Expense saved' : `${values.description} added`,
       description: values.personal
@@ -120,6 +148,7 @@ function ExpenseSheetBody({
       actor,
       groupId: group.id,
       expenseId: expense.id,
+      attachments: expense.attachments,
       summary: activity.expenseDeleted(name, expense.description, money(expense.amount)),
     })
     if ('error' in result) return String(result.error)
@@ -141,6 +170,13 @@ function ExpenseSheetBody({
         categories={categories.data ?? []}
         baseCurrency={baseCurrency}
         locale={locale}
+        attachments={
+          <AttachmentsField
+            parent={parent}
+            mode={expense ? 'saved' : 'draft'}
+            onBusyChange={setPreparingFiles}
+          />
+        }
         onSubmit={onSubmit}
         onDelete={expense ? () => setConfirmingDelete(true) : undefined}
         onCancel={onDone}
@@ -149,7 +185,7 @@ function ExpenseSheetBody({
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
         title={`Delete ${expense?.description ?? 'this expense'}?`}
-        description="Balances update for everyone in the group. A personal expense you linked to it stays in your transactions."
+        description="Balances update for everyone in the group, and its receipts are deleted. A personal expense you linked to it stays in your transactions."
         confirmLabel="Delete expense"
         busyLabel="Deleting…"
         destructive

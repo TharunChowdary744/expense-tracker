@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { attachmentsField } from '@/features/receipts/schemas'
 import {
   parseRecurrence,
   recurrenceFormSchema,
@@ -42,7 +43,7 @@ export const transactionSchema = z.object({
   payee: z.string().catch(''),
   note: z.string().catch(''),
   date: z.string(),
-  attachments: z.array(z.unknown()).catch([]),
+  attachments: attachmentsField,
   recurringId: z.string().optional(),
   occurrenceKey: z.string().optional(),
   groupExpenseRef: z.string().optional(),

@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Copy, EllipsisVertical, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeftRight, Copy, EllipsisVertical, Paperclip, Pencil, Trash2 } from 'lucide-react'
 import { memo } from 'react'
 import { ColoredIcon } from '@/components/ColoredIcon'
 import { PendingBadge } from '@/components/PendingBadge'
@@ -88,6 +88,7 @@ export const TransactionRow = memo(function TransactionRow({
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <span className="truncate font-medium">{title}</span>
+            {tx.attachments.length > 0 && <AttachmentCount count={tx.attachments.length} />}
             {tx.pending && <PendingBadge />}
           </span>
           <span className="block truncate text-xs text-muted-foreground">
@@ -136,3 +137,13 @@ export const TransactionRow = memo(function TransactionRow({
     </li>
   )
 })
+
+export function AttachmentCount({ count }: { count: number }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
+      <Paperclip className="size-3" aria-hidden />
+      <span aria-hidden>{count}</span>
+      <span className="sr-only">{count === 1 ? '1 receipt' : `${count} receipts`}</span>
+    </span>
+  )
+}

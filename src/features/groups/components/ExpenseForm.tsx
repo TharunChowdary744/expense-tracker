@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo, useState, type ReactNode } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { FormMessage } from '@/components/form/FormMessage'
 import { SelectField } from '@/components/form/SelectField'
@@ -37,6 +37,8 @@ interface Props {
   categories: readonly Category[]
   baseCurrency: string
   locale: string
+  /** The receipts section, shown above the buttons. */
+  attachments?: ReactNode
   /** Resolves to an error message, or null on success. */
   onSubmit: (values: GroupExpenseFormValues) => Promise<string | null>
   onDelete?: () => void
@@ -114,6 +116,7 @@ export function ExpenseForm({
   categories,
   baseCurrency,
   locale,
+  attachments,
   onSubmit,
   onDelete,
   onCancel,
@@ -438,6 +441,8 @@ export function ExpenseForm({
           )}
         </div>
       )}
+
+      {attachments}
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
         {onDelete ? (

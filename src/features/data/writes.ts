@@ -13,6 +13,7 @@ import {
   type DocumentData,
   type Firestore,
 } from 'firebase/firestore'
+import { attachmentsUnder, receiptPrefix } from '@/features/receipts/utils'
 import { accountDeltas } from '@/features/transactions/utils'
 import type { BalanceTransaction } from '@/features/transactions/types'
 import {
@@ -284,6 +285,13 @@ export async function restoreBackup(
       for (const id of part) {
         const values = data(id)
         if (name === 'accounts') values.txTotal = 0
+        if (name === 'transactions') {
+          // Receipts only come back when the files are this account's own (same user and id).
+          values.attachments = attachmentsUnder(
+            values.attachments,
+            receiptPrefix({ kind: 'tx', uid, id }),
+          )
+        }
         batch.set(doc(db, 'users', uid, name, id), { ...values, ...stamps() })
       }
       if (name === 'transactions') {

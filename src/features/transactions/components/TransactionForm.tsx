@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { MOBILE_QUERY, useMediaQuery } from '@/app/useMediaQuery'
 import { FormMessage } from '@/components/form/FormMessage'
@@ -56,6 +56,8 @@ export interface TransactionFormProps {
   rule?: RecurringRule
   /** Shown under the date in rule mode (e.g. the earliest allowed new start). */
   dateHint?: string
+  /** The receipts section, shown for single transactions (not recurring rules). */
+  attachments?: ReactNode
   /** Resolves to an error message, or null on success. */
   onSubmit: (values: TransactionFormValues) => Promise<string | null>
   onCancel: () => void
@@ -436,6 +438,8 @@ export function TransactionForm(props: TransactionFormProps) {
       {repeats && (
         <RecurrenceFields control={control} register={register} errors={errors} locale={locale} />
       )}
+
+      {!repeats && recurring !== 'rule' && props.attachments}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel}>
