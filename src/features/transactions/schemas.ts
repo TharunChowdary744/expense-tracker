@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import {
+  parseRecurrence,
+  recurrenceFormSchema,
+  type RecurrenceValues,
+} from '@/features/recurring/recurrence'
 import { CURRENCY_CODE } from '@/utils/currency'
 import { evaluateAmount } from '@/utils/calc'
 import { convertMinor, isValidRate } from '@/utils/money'
@@ -78,6 +83,8 @@ export const transactionFormBase = z.object({
   payee: z.string().trim().max(PAYEE_MAX, `Use at most ${PAYEE_MAX} characters`),
   note: z.string().trim().max(NOTE_MAX, `Use at most ${NOTE_MAX} characters`),
   tags: z.array(z.string()).max(TAGS_MAX, `Use at most ${TAGS_MAX} tags`),
+  /** The "Make recurring" section; when enabled the date is the schedule's start. */
+  recurrence: recurrenceFormSchema.optional(),
 })
 
 export type TransactionFormInput = z.input<typeof transactionFormBase>
@@ -97,6 +104,8 @@ export interface TransactionFormValues {
   payee: string
   note: string
   tags: string[]
+  /** Set when the form creates or edits a recurring rule instead of a single transaction. */
+  recurrence?: RecurrenceValues
 }
 
 /** Why a transaction currency can't be used with an account, or null when it can. */
@@ -161,6 +170,16 @@ export function transactionFormSchema(ctx: TransactionFormContext) {
       if (baseAmount <= 0) return fail('fxRate', 'The converted amount rounds to zero')
     }
 
+    let recurrence: RecurrenceValues | undefined
+    if (v.recurrence?.enabled) {
+      const parsed = parseRecurrence(v.recurrence, v.date)
+      if (!parsed.ok) {
+        zctx.addIssue({ code: 'custom', path: parsed.path.split('.'), message: parsed.message })
+        return z.NEVER
+      }
+      recurrence = parsed.value
+    }
+
     return {
       type: v.type,
       amount,
@@ -175,6 +194,7 @@ export function transactionFormSchema(ctx: TransactionFormContext) {
       payee: v.type === 'transfer' ? '' : v.payee,
       note: v.note,
       tags: [...new Set(v.tags.map(normalizeTag).filter(Boolean))],
+      ...(recurrence ? { recurrence } : {}),
     }
   })
 }

@@ -6,11 +6,16 @@ import { FormMessage } from '@/components/form/FormMessage'
 import { SelectField } from '@/components/form/SelectField'
 import { TextField } from '@/components/form/TextField'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Account } from '@/features/accounts/types'
 import { accountBalance } from '@/features/accounts/utils'
 import type { Category } from '@/features/categories/types'
 import { categoryPickerOptions } from '@/features/categories/utils'
+import { RecurrenceFields } from '@/features/recurring/components/RecurrenceFields'
+import { defaultRecurrenceInput, recurrenceInputFrom } from '@/features/recurring/recurrence'
+import type { RecurringRule } from '@/features/recurring/types'
+import { ruleSchedule } from '@/features/recurring/utils'
 import { evaluateAmount, isExpression } from '@/utils/calc'
 import { currencyOptions } from '@/utils/currency'
 import { convertMinor, formatMoney, fromMinor, isValidRate } from '@/utils/money'
@@ -40,13 +45,43 @@ export interface TransactionFormProps {
   initial?: Transaction
   /** Duplicate: prefilled, but saved as a new transaction dated today. */
   duplicate?: boolean
+  /**
+   * "toggle": a new transaction can be made recurring (the quick-add sheet). "rule": the form
+   * edits the recurring rule `rule` (always recurring, the date is the schedule start).
+   */
+  recurring?: 'toggle' | 'rule'
+  /** Start with "Make recurring" switched on. */
+  startRecurring?: boolean
+  /** The rule being edited, when `recurring` is "rule". */
+  rule?: RecurringRule
+  /** Shown under the date in rule mode (e.g. the earliest allowed new start). */
+  dateHint?: string
   /** Resolves to an error message, or null on success. */
   onSubmit: (values: TransactionFormValues) => Promise<string | null>
   onCancel: () => void
 }
 
 function defaultValues(p: TransactionFormProps): TransactionFormInput {
-  const { initial, accounts, prefs, baseCurrency } = p
+  const { initial, accounts, prefs, baseCurrency, rule } = p
+  if (rule) {
+    const t = rule.template
+    const schedule = ruleSchedule(rule)
+    return {
+      type: t.type,
+      amount: fromMinor(t.amount, t.currency),
+      currency: t.currency,
+      fxRate: t.currency === baseCurrency ? '' : String(t.fxRateToBase),
+      accountId: t.accountId,
+      toAccountId: t.toAccountId ?? '',
+      categoryId: t.categoryId ?? '',
+      date: schedule.startDate,
+      payee: t.payee,
+      note: t.note,
+      tags: t.tags,
+      recurrence: recurrenceInputFrom(schedule, rule.mode),
+    }
+  }
+  const recurrence = defaultRecurrenceInput(Boolean(p.startRecurring))
   if (initial) {
     return {
       type: initial.type,
@@ -60,6 +95,7 @@ function defaultValues(p: TransactionFormProps): TransactionFormInput {
       payee: initial.payee,
       note: initial.note,
       tags: initial.tags,
+      recurrence,
     }
   }
   const active = accounts.filter((a) => !a.archived)
@@ -77,11 +113,14 @@ function defaultValues(p: TransactionFormProps): TransactionFormInput {
     payee: '',
     note: '',
     tags: [],
+    recurrence,
   }
 }
 
 export function TransactionForm(props: TransactionFormProps) {
   const { accounts, categories, baseCurrency, locale, prefs, initial, onSubmit, onCancel } = props
+  const { recurring, rule } = props
+  const editingTx = initial !== undefined && !props.duplicate
   const isMobile = useMediaQuery(MOBILE_QUERY)
   const [error, setError] = useState<string | null>(null)
 
@@ -108,20 +147,22 @@ export function TransactionForm(props: TransactionFormProps) {
   const currency = useWatch({ control, name: 'currency' })
   const fxRate = useWatch({ control, name: 'fxRate' })
   const accountId = useWatch({ control, name: 'accountId' })
+  const repeats = useWatch({ control, name: 'recurrence.enabled' }) === true
 
   // Pickers show active items, plus whatever an edited transaction already uses.
+  const keep = rule?.template ?? initial
   const accountOptions = accounts.filter(
-    (a) => !a.archived || a.id === initial?.accountId || a.id === initial?.toAccountId,
+    (a) => !a.archived || a.id === keep?.accountId || a.id === keep?.toAccountId,
   )
   const categoryKind = type === 'income' ? 'income' : 'expense'
   const categoryOptions = useMemo(() => {
     const options = categoryPickerOptions(categories, categoryKind)
-    const current = categories.find((c) => c.id === initial?.categoryId)
+    const current = categories.find((c) => c.id === keep?.categoryId)
     if (current && current.kind === categoryKind && !options.some((o) => o.id === current.id)) {
       options.push({ id: current.id, label: `${current.name} (archived)`, depth: 0 })
     }
     return options
-  }, [categories, categoryKind, initial?.categoryId])
+  }, [categories, categoryKind, keep?.categoryId])
   const recentOptions = prefs.recentCategoryIds
     .map((id) => categoryOptions.find((o) => o.id === id))
     .filter((o): o is NonNullable<typeof o> => o !== undefined)
@@ -313,7 +354,13 @@ export function TransactionForm(props: TransactionFormProps) {
       )}
 
       <div className={type === 'transfer' ? '' : 'grid gap-4 sm:grid-cols-2'}>
-        <TextField label="Date" type="date" error={errors.date?.message} {...register('date')} />
+        <TextField
+          label={repeats ? 'Starts' : 'Date'}
+          type="date"
+          error={errors.date?.message}
+          hint={recurring === 'rule' ? props.dateHint : undefined}
+          {...register('date')}
+        />
         {type !== 'transfer' && (
           <>
             <TextField
@@ -362,6 +409,31 @@ export function TransactionForm(props: TransactionFormProps) {
         )}
       />
 
+      {recurring === 'toggle' && !editingTx && (
+        <Controller
+          control={control}
+          name="recurrence.enabled"
+          render={({ field }) => (
+            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <label htmlFor="tx-recurring" className="text-sm font-medium">
+                Make recurring
+                <span className="block text-xs font-normal text-muted-foreground">
+                  Repeat this on a schedule, starting on the date above.
+                </span>
+              </label>
+              <Switch
+                id="tx-recurring"
+                checked={field.value === true}
+                onCheckedChange={field.onChange}
+              />
+            </div>
+          )}
+        />
+      )}
+      {repeats && (
+        <RecurrenceFields control={control} register={register} errors={errors} locale={locale} />
+      )}
+
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel
@@ -369,9 +441,11 @@ export function TransactionForm(props: TransactionFormProps) {
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting
             ? 'Saving…'
-            : initial && !props.duplicate
+            : recurring === 'rule' || editingTx
               ? 'Save changes'
-              : `Add ${TRANSACTION_TYPE_LABELS[type].toLowerCase()}`}
+              : repeats
+                ? `Create recurring ${TRANSACTION_TYPE_LABELS[type].toLowerCase()}`
+                : `Add ${TRANSACTION_TYPE_LABELS[type].toLowerCase()}`}
         </Button>
       </div>
     </form>

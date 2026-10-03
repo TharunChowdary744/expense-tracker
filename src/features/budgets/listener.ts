@@ -1,4 +1,5 @@
 import { createListenerMiddleware, isAnyOf } from '@reduxjs/toolkit'
+import { recurringApi } from '@/features/recurring/api'
 import { transactionsApi } from '@/features/transactions/api'
 import { toastAdded } from '@/features/ui/slice'
 import { budgetsApi } from './api'
@@ -7,20 +8,30 @@ import { highestPerBudget } from './alerts'
 const { createTransaction, updateTransaction, deleteTransactions, recategorizeTransactions } =
   transactionsApi.endpoints
 
+const { runRecurring, confirmOccurrence } = recurringApi.endpoints
+
 const transactionWritten = isAnyOf(
   createTransaction.matchFulfilled,
   updateTransaction.matchFulfilled,
   deleteTransactions.matchFulfilled,
   recategorizeTransactions.matchFulfilled,
+  runRecurring.matchFulfilled,
+  confirmOccurrence.matchFulfilled,
 )
 
 /** The transaction dates a write touched, so backdated entries are checked in their period. */
 export function affectedDates(action: {
+  payload?: unknown
   meta: { arg: { endpointName: string; originalArgs: unknown } }
 }): string[] {
   const { endpointName, originalArgs } = action.meta.arg
   const args = originalArgs as Record<string, unknown>
+  const payload = (action.payload ?? {}) as Record<string, unknown>
   switch (endpointName) {
+    case 'runRecurring':
+      return payload.postedDates as string[]
+    case 'confirmOccurrence':
+      return [payload.dateIso as string]
     case 'createTransaction':
       return [args.dateIso as string]
     case 'updateTransaction':
@@ -45,6 +56,8 @@ budgetAlerts.startListening({
   predicate: (action): boolean => transactionWritten(action),
   effect: async (action, { dispatch }) => {
     if (!transactionWritten(action)) return
+    // A catch-up run that found nothing to post wrote no transactions.
+    if (runRecurring.matchFulfilled(action) && action.payload.posted === 0) return
     const uid = (action.meta.arg.originalArgs as { uid: string }).uid
     const dates = affectedDates(action)
     queue = queue
