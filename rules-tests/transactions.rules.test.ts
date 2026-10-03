@@ -7,6 +7,8 @@ import {
 } from '@firebase/rules-unit-testing'
 import {
   Timestamp,
+  arrayRemove,
+  arrayUnion,
   deleteDoc,
   deleteField,
   doc,
@@ -348,5 +350,96 @@ describe('transactions: schema', () => {
     const snap = await getDoc(newRef())
     const parsed = transactionSchema.safeParse(toPlain(snap.data()))
     expect(parsed.success).toBe(true)
+  })
+})
+
+describe('transactions: attachments', () => {
+  const file = (name: string, patch: Record<string, unknown> = {}) => ({
+    path: `users/alice/receipts/new/${name}`,
+    name: `${name}.jpg`,
+    contentType: 'image/jpeg',
+    size: 250_000,
+    ...patch,
+  })
+
+  it('accepts up to 5 photos and PDFs stored under the transaction', async () => {
+    await assertSucceeds(
+      setDoc(
+        newRef(),
+        expense({
+          attachments: [
+            file('a1'),
+            file('a2', { contentType: 'application/pdf', name: 'bill.pdf' }),
+            file('a3', { contentType: 'image/png' }),
+            file('a4_x-Y'),
+            file('a5', { size: 10 * 1024 * 1024 }),
+          ],
+        }),
+      ),
+    )
+  })
+
+  it('rejects a sixth file', async () => {
+    const six = ['a', 'b', 'c', 'd', 'e', 'f'].map((n) => file(n))
+    await assertFails(setDoc(newRef(), expense({ attachments: six })))
+  })
+
+  it('rejects files outside this transaction’s folder', async () => {
+    for (const path of [
+      'users/alice/receipts/other/a1',
+      'users/bob/receipts/new/a1',
+      'users/alice/receipts/new/',
+      'users/alice/receipts/new/a/b',
+      'groups/g1/receipts/new/a1',
+      'users/alice/avatar',
+    ]) {
+      await assertFails(setDoc(newRef(), expense({ attachments: [file('a1', { path })] })))
+    }
+  })
+
+  it('checks each entry’s fields', async () => {
+    const bad: Record<string, unknown>[] = [
+      { contentType: 'application/x-msdownload' },
+      { contentType: 'image/svg+xml' },
+      { contentType: 'text/html' },
+      { size: 10 * 1024 * 1024 + 1 },
+      { size: 0 },
+      { size: 12.5 },
+      { name: '' },
+      { name: 'x'.repeat(201) },
+      { url: 'https://example.com' },
+    ]
+    for (const patch of bad) {
+      await assertFails(setDoc(newRef(), expense({ attachments: [file('a1', patch)] })))
+    }
+    await assertFails(setDoc(newRef(), expense({ attachments: ['users/alice/receipts/new/a1'] })))
+    await assertFails(setDoc(newRef(), expense({ attachments: [without(file('a1'), 'size')] })))
+  })
+
+  it('lets the owner add and remove files on a saved transaction', async () => {
+    const ref = existing()
+    const entry = file('r1', { path: 'users/alice/receipts/existing/r1' })
+    await assertSucceeds(
+      updateDoc(ref, { attachments: arrayUnion(entry), updatedAt: serverTimestamp() }),
+    )
+    await assertSucceeds(
+      updateDoc(ref, { attachments: arrayRemove(entry), updatedAt: serverTimestamp() }),
+    )
+    await assertFails(
+      updateDoc(ref, {
+        attachments: arrayUnion(file('r2', { path: 'users/alice/receipts/new/r2' })),
+        updatedAt: serverTimestamp(),
+      }),
+    )
+  })
+
+  it('denies other users', async () => {
+    const entry = file('r1', { path: 'users/alice/receipts/existing/r1' })
+    await assertFails(
+      updateDoc(doc(asDb('bob'), 'users/alice/transactions/existing'), {
+        attachments: arrayUnion(entry),
+        updatedAt: serverTimestamp(),
+      }),
+    )
   })
 })
