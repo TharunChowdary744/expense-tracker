@@ -69,11 +69,21 @@ There is no custom server. Anything that must be trusted is enforced by security
 - **Budget alerts** run after catch-up posts and confirms (the budgets listener also matches `runRecurring` and `confirmOccurrence`).
 - **Rules:** `recurring` docs and their template are validated; a transaction with `recurringId` must have the id `${recurringId}_${occurrenceKey}`, and those fields can't change.
 
+## Groups and split bills
+
+- **Pure maths:** `features/groups/split.ts` turns a split (equal, exact, percent, shares) into integer `shares` with `allocate` from `utils/money.ts`, so remainders go one minor unit at a time to members in owner-first join order and always sum to the amount. `features/groups/balances.ts` holds `netBalances`, `pairwiseDebts` (who owes whom per expense, opposite debts cancelled, payments subtracted) and `simplifyDebts` (greedy minimum cash flow: largest debtor pays largest creditor, ties by uid). All unit-tested.
+- **Writes** live in `features/groups/writes.ts` and take `db`, so the emulator rules tests run the same code as the app. Every write adds an `activity` doc in the same batch. Joining is a `runTransaction` that reads the invite and adds the member; an expense with "add my share" writes the personal transaction (with `groupExpenseRef`) and the account `txTotal` in the same batch.
+- **Membership:** `ownerId` names the owner. Members who leave or are removed stay in the `members` map with role `former` so old expenses keep their names; `memberIds` is what grants access. The owner leaving hands ownership to the next member. Leave/remove is offered only at a zero balance (checked in the UI).
+- **Invites:** `invites/{token}` with a 32-character random token. Link invites (`invitedEmail: null`) work for anyone signed in until they expire (7 days). Email invites need that verified email, are single use, and stop working once the email is removed from `group.invitedEmails`. The new member records `joinedVia: token` so rules can check the invite.
+- **Reminders:** "Remind" creates `users/{debtor}/notifications/remind_<groupId>_<fromUid>_<yyyymmdd UTC>`; rules allow a fellow member to create it once per day. The debtor sees it as a toast (`useSettleReminders` in `AppLayout`).
+- **Rules:** members only for the group and its subcollections. Expenses: currency equals the group's, `amount` an integer > 0, `paidBy` and `shares` keys are members, and `sum(paidBy) == amount == sum(shares)` (rules can't loop, so sums are size-bucketed, up to 20 members). Settlements can't be edited; activity is append-only.
+
 ## Data ownership
 
 - `users/{uid}/**` is private to that user.
-- `groups/{groupId}/**` is readable and writable by `memberIds` only, with role checks for admin actions.
-- `invites/{token}` is readable by the invited email and the group, and accepted once.
+- `groups/{groupId}/**` is readable and writable by `memberIds` only; only the owner can remove other members.
+- `invites/{token}` can be read by anyone who has the token (it is the secret), created and deleted by group members, and accepted by the joining user.
+- A group member may create one settle-up reminder per day in another member's `notifications`.
 
 ## Environments
 
