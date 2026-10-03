@@ -1,5 +1,14 @@
 import { skipToken } from '@reduxjs/toolkit/query/react'
-import { ArrowLeftRight, Plus, Search, SlidersHorizontal, Tag, Trash2, X } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  Download,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Tag,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/ListStates'
@@ -8,12 +17,17 @@ import { Input } from '@/components/ui/input'
 import { useGetAccountsQuery } from '@/features/accounts/api'
 import { useUid } from '@/features/auth/hooks'
 import { useGetCategoriesQuery } from '@/features/categories/api'
+import { useLazyExportTransactionsQuery } from '@/features/data/api'
+import { exportFileName, transactionsToCsv } from '@/features/data/csvExport'
 import { useUserSettings } from '@/features/settings/hooks'
 import { useToast } from '@/features/ui/hooks'
 import { dialogOpened } from '@/features/ui/slice'
+import { addCalendarDays, calendarDate } from '@/utils/dates'
+import { downloadFile } from '@/utils/download'
 import { formatMoney } from '@/utils/money'
 import { useGetTransactionsInfiniteQuery, useRecategorizeTransactionsMutation } from '../api'
 import { ActiveFilters } from '../components/ActiveFilters'
+import { FilterTotals } from '../components/FilterTotals'
 import { FiltersSheet } from '../components/FiltersSheet'
 import { RecategorizeDialog } from '../components/RecategorizeDialog'
 import { TransactionRow } from '../components/TransactionRow'
@@ -48,6 +62,7 @@ export function TransactionsPage() {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [recategorize] = useRecategorizeTransactionsMutation()
   const hidden = useAppSelector(selectHiddenIds)
+  const [fetchForExport, exportState] = useLazyExportTransactionsQuery()
 
   // Search box: typed text goes to the URL after a short pause.
   const [searchText, setSearchText] = useState(filters.search)
@@ -158,6 +173,31 @@ export function TransactionsPage() {
     return null
   }
 
+  async function exportCsv() {
+    const result = await fetchForExport({ uid, query })
+    if (result.error || !result.data) {
+      toast({
+        title: 'Could not export',
+        description: String(result.error ?? 'Try again.'),
+        variant: 'error',
+      })
+      return
+    }
+    const rows = result.data.filter((t) => !hidden.has(t.id))
+    const csv = transactionsToCsv(rows, { accounts: accountsById, categories, baseCurrency })
+    const from = query.start ? calendarDate(query.start) : null
+    const to = query.end ? addCalendarDays(calendarDate(query.end), -1) : null
+    downloadFile(
+      `\ufeff${csv}`,
+      exportFileName('transactions', from, to, 'csv'),
+      'text/csv;charset=utf-8',
+    )
+    toast({
+      title: `Exported ${rows.length} transaction${rows.length === 1 ? '' : 's'}`,
+      variant: 'success',
+    })
+  }
+
   const filterCount = activeFilterCount(filters)
   const hasFilters = filterCount > 0 || filters.search.trim() !== ''
   const openQuickAdd = () => dispatch(dialogOpened({ kind: 'quick-add' }))
@@ -222,6 +262,15 @@ export function TransactionsPage() {
             </option>
           ))}
         </select>
+        <Button
+          variant="outline"
+          onClick={() => void exportCsv()}
+          disabled={exportState.isFetching || waitForCategories}
+          title="Download the transactions that match these filters"
+        >
+          <Download aria-hidden />
+          {exportState.isFetching ? 'Exporting…' : 'Export CSV'}
+        </Button>
         <Button variant="outline" onClick={() => setFiltersOpen(true)}>
           <SlidersHorizontal aria-hidden />
           Filters
@@ -243,6 +292,17 @@ export function TransactionsPage() {
         baseCurrency={baseCurrency}
         locale={locale}
       />
+
+      {!waitForCategories && (
+        <FilterTotals
+          uid={uid}
+          query={query}
+          loaded={items}
+          complete={Boolean(list.data) && !hasNextPage}
+          baseCurrency={baseCurrency}
+          locale={locale}
+        />
+      )}
 
       {selectedItems.length > 0 && (
         <div

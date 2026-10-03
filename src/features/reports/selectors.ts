@@ -1,6 +1,6 @@
 import { createSelector } from '@reduxjs/toolkit'
 import { computeDashboard, computeReport, type DashboardParams, type ReportParams } from './compute'
-import type { ReportCategory, ReportTx } from './types'
+import type { CategorySlice, ReportCategory, ReportTx } from './types'
 import { filterTransactions, sliceTransactions, categorySpend } from './utils'
 
 /**
@@ -23,7 +23,7 @@ export const selectDashboard = createSelector(
 )
 
 /** The filtered transactions for the range (for drill-down lists and exports). */
-export const selectRangeTransactions = createSelector(
+const rangeSelector = createSelector(
   [txsArg, (_txs: unknown, _c: unknown, params: ReportParams) => params],
   (txs, params) =>
     filterTransactions(
@@ -41,7 +41,7 @@ export interface DrillParams {
 }
 
 /** Slices for the current drill level and the transactions of the selected slice. */
-export const selectDrill = createSelector(
+const drillSelector = createSelector(
   [
     (current: readonly ReportTx[]) => current,
     (_t: unknown, categories: readonly ReportCategory[]) => categories,
@@ -59,3 +59,20 @@ export const selectDrill = createSelector(
     return { slices, slice, transactions }
   },
 )
+
+/** `drillSelector`, keeping the caller's transaction type (rows are the objects passed in). */
+export function selectDrill<T extends ReportTx>(
+  current: readonly T[],
+  categories: readonly ReportCategory[],
+  drill: DrillParams,
+): { slices: CategorySlice[]; slice: CategorySlice | null; transactions: T[] } {
+  return drillSelector(current, categories, drill) as ReturnType<typeof selectDrill<T>>
+}
+
+/** The report's range and accounts applied to `txs`, keeping the caller's transaction type. */
+export function selectRangeTransactions<T extends ReportTx>(
+  txs: readonly T[],
+  params: ReportParams,
+): T[] {
+  return rangeSelector(txs, null, params) as T[]
+}

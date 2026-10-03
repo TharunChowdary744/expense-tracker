@@ -27,6 +27,22 @@
   --input: oklch(0.9 0.005 250);
   --ring: oklch(0.55 0.1 185);
   --radius: 0.625rem;
+  /* Chart series: categorical colours with at least 3:1 contrast on the card colour. */
+  --chart-1: oklch(0.52 0.09 185);
+  --chart-2: oklch(0.55 0.15 45);
+  --chart-3: oklch(0.5 0.14 265);
+  --chart-4: oklch(0.55 0.14 145);
+  --chart-5: oklch(0.52 0.18 350);
+  --chart-6: oklch(0.58 0.12 85);
+  --chart-7: oklch(0.5 0.12 310);
+  --chart-8: oklch(0.52 0.03 250);
+  --chart-income: oklch(0.5 0.12 150);
+  --chart-expense: oklch(0.55 0.17 30);
+  --chart-net: oklch(0.45 0.09 250);
+  --heat-1: oklch(0.9 0.05 185);
+  --heat-2: oklch(0.78 0.08 185);
+  --heat-3: oklch(0.62 0.1 185);
+  --heat-4: oklch(0.45 0.09 185);
 }
 
 .dark {
@@ -51,6 +67,21 @@
   --border: oklch(0.32 0.01 250);
   --input: oklch(0.32 0.01 250);
   --ring: oklch(0.65 0.1 185);
+  --chart-1: oklch(0.75 0.11 185);
+  --chart-2: oklch(0.75 0.14 55);
+  --chart-3: oklch(0.72 0.13 265);
+  --chart-4: oklch(0.76 0.15 145);
+  --chart-5: oklch(0.72 0.16 350);
+  --chart-6: oklch(0.82 0.13 90);
+  --chart-7: oklch(0.72 0.13 310);
+  --chart-8: oklch(0.7 0.02 250);
+  --chart-income: oklch(0.75 0.14 150);
+  --chart-expense: oklch(0.72 0.16 30);
+  --chart-net: oklch(0.78 0.08 250);
+  --heat-1: oklch(0.32 0.04 185);
+  --heat-2: oklch(0.45 0.07 185);
+  --heat-3: oklch(0.6 0.09 185);
+  --heat-4: oklch(0.78 0.11 185);
 }
 
 @theme inline {
@@ -75,6 +106,13 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-chart-income: var(--chart-income);
+  --color-chart-expense: var(--chart-expense);
+  --color-chart-net: var(--chart-net);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

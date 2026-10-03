@@ -128,6 +128,18 @@ export const routes: RouteObject[] = [
             }),
           },
           {
+            path: 'data',
+            lazy: async () => ({
+              Component: (await import('@/features/data/pages/DataPage')).DataPage,
+            }),
+          },
+          {
+            path: 'data/import',
+            lazy: async () => ({
+              Component: (await import('@/features/data/pages/ImportPage')).ImportPage,
+            }),
+          },
+          {
             path: 'profile',
             lazy: async () => ({
               Component: (await import('@/features/auth/pages/ProfilePage')).ProfilePage,
