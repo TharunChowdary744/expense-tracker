@@ -57,6 +57,8 @@ describe('calendar arithmetic', () => {
   it('validates calendar dates', () => {
     expect(isCalendarDate('2026-02-29')).toBe(false)
     expect(isCalendarDate('2028-02-29')).toBe(true)
+    expect(isCalendarDate('2026-13-01')).toBe(false)
+    expect(isCalendarDate('2026-00-10')).toBe(false)
     expect(isCalendarDate('2026-1-1')).toBe(false)
     expect(() => addCalendarDays('x', 1)).toThrow(RangeError)
   })

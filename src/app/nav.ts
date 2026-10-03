@@ -1,4 +1,5 @@
 import {
+  ArrowDownUp,
   ArrowLeftRight,
   ChartPie,
   LayoutDashboard,
@@ -26,6 +27,7 @@ export const navItems: NavItem[] = [
   { to: '/recurring', label: 'Recurring', icon: Repeat },
   { to: '/groups', label: 'Groups', icon: Users },
   { to: '/reports', label: 'Reports', icon: ChartPie },
+  { to: '/data', label: 'Import & export', icon: ArrowDownUp },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 

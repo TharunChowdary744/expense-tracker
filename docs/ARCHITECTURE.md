@@ -78,6 +78,17 @@ There is no custom server. Anything that must be trusted is enforced by security
 - **Reminders:** "Remind" creates `users/{debtor}/notifications/remind_<groupId>_<fromUid>_<yyyymmdd UTC>`; rules allow a fellow member to create it once per day. The debtor sees it as a toast (`useSettleReminders` in `AppLayout`).
 - **Rules:** members only for the group and its subcollections. Expenses: currency equals the group's, `amount` an integer > 0, `paidBy` and `shares` keys are members, and `sum(paidBy) == amount == sum(shares)` (rules can't loop, so sums are size-bucketed, up to 20 members). Settlements can't be edited; activity is append-only.
 
+## Reports, import and export
+
+- **Pure aggregations:** `features/reports/utils.ts` holds every report calculation (totals, category spend with subcategory drill-down, monthly trend, daily flow and heatmap levels, top payees, tags, period comparison, range presets). `compute.ts` combines them into one report; `selectors.ts` memoises it with `createSelector`. Amounts are `baseAmount` in minor units; transfers are left out. Ranges are calendar dates in the device timezone, end-exclusive, the same way the Transactions filters work, so dashboard and Transactions totals match.
+- **Web Worker:** `useReport` computes on the main thread through the selector, and in `report.worker.ts` once the loaded window has more than 5,000 transactions.
+- **Loading:** `getTransactionsInRange` is a live listener on `date` covering the current range, the comparison range and the 12-month trend in one query.
+- **Charts:** colours come from the `--chart-*` and `--heat-*` tokens in `index.css` (light and dark). Every chart card has a "Show table" toggle with the same numbers as a table. Drill-down state (`cat`, `slice`) lives in the URL.
+- **CSV:** `utils/csv.ts` writes RFC 4180 with a guard against spreadsheet formulas and reads it back (BOM, delimiter detection). Export uses the columns in `features/data/csvExport.ts`; the import wizard maps any CSV to those fields (`csvImport.ts`). Duplicates are rows with the same local day, currency, amount and payee as an existing transaction (or an earlier row), counted as a multiset.
+- **Import writes** (`features/data/writes.ts`) are `writeBatch`es of up to 400 transactions with the account `txTotal` increments; a batch is split earlier when it would reference more than 18 distinct accounts and categories, because the rules' `get()`/`exists()` calls are capped per request.
+- **PDF statement:** `pdf.ts` works out every number in a pure `statementData` (tested) and lays it out with jsPDF + autotable, loaded on demand. The standard PDF fonts are Latin-1, so amounts use ISO codes and other characters are replaced.
+- **Backup and restore:** a versioned JSON file of the user doc settings and every `users/{uid}` collection (Timestamps tagged as `{__time}`), plus a read-only copy of groups. Restore validates the file with zod, deletes the current accounts, categories, transactions, budgets and recurring rules, then writes the backup's docs with the same ids (parents before children, `txTotal` rebuilt from the transactions). Notifications and groups are not restored. No rules changes were needed: import and restore go through the same validated writes as the app.
+
 ## Data ownership
 
 - `users/{uid}/**` is private to that user.

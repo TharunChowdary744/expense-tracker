@@ -46,7 +46,9 @@ function toUtc(date: string): Date {
   if (!match) throw new RangeError(`Not a calendar date: ${date}`)
   const [, y, m, d] = match
   const utc = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)))
-  if (utc.getUTCDate() !== Number(d)) throw new RangeError(`Not a calendar date: ${date}`)
+  if (utc.getUTCDate() !== Number(d) || utc.getUTCMonth() !== Number(m) - 1) {
+    throw new RangeError(`Not a calendar date: ${date}`)
+  }
   return utc
 }
 

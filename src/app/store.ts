@@ -2,6 +2,7 @@ import { combineReducers, configureStore } from '@reduxjs/toolkit'
 import { setupListeners } from '@reduxjs/toolkit/query'
 import { authReducer } from '@/features/auth/slice'
 import { budgetAlerts } from '@/features/budgets/listener'
+import { dataReducer } from '@/features/data/slice'
 import { transactionsReducer } from '@/features/transactions/slice'
 import { uiReducer } from '@/features/ui/slice'
 import { api } from '@/services/api'
@@ -9,6 +10,7 @@ import { api } from '@/services/api'
 const rootReducer = combineReducers({
   [api.reducerPath]: api.reducer,
   auth: authReducer,
+  data: dataReducer,
   transactions: transactionsReducer,
   ui: uiReducer,
 })
