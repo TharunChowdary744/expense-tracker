@@ -89,12 +89,22 @@ There is no custom server. Anything that must be trusted is enforced by security
 - **PDF statement:** `pdf.ts` works out every number in a pure `statementData` (tested) and lays it out with jsPDF + autotable, loaded on demand. The standard PDF fonts are Latin-1, so amounts use ISO codes and other characters are replaced.
 - **Backup and restore:** a versioned JSON file of the user doc settings and every `users/{uid}` collection (Timestamps tagged as `{__time}`), plus a read-only copy of groups. Restore validates the file with zod, deletes the current accounts, categories, transactions, budgets and recurring rules, then writes the backup's docs with the same ids (parents before children, `txTotal` rebuilt from the transactions). Notifications and groups are not restored. No rules changes were needed: import and restore go through the same validated writes as the app.
 
+## Receipts
+
+- **Where files live:** `users/{uid}/receipts/{txId}/{fileId}` and `groups/{groupId}/receipts/{expenseId}/{fileId}`. The document's `attachments` holds up to 5 `{ path, name, contentType, size }` entries; download URLs are fetched lazily (`getReceiptUrl`) when a file is shown.
+- **Preparing:** `features/receipts/compress.ts` converts HEIC to JPEG (heic2any, loaded only for HEIC files) and compresses photos over 300 KB to JPEG within 1600 px (browser-image-compression in a worker, served from our own origin). PDFs are uploaded as they are. Files over 10 MB, or anything but images and PDFs, are refused before upload, and again by the Storage rules.
+- **Queue:** `queue.ts` runs uploads and deletes one at a time while online. Jobs and their files are kept in IndexedDB (`persist.ts`), so work queued offline or cut off by a reload resumes later; network errors are retried with backoff and the Redux `receipts` slice mirrors the jobs for progress, cancel and retry in the UI.
+- **New vs saved documents:** a new transaction or expense gets its id when the form opens, so files upload while it is being filled in. They are _drafts_: saving lists them on the new document and commits them; closing the form (or reloading the page) deletes them. On a saved document, adding or removing a file writes the `attachments` list straight away.
+- **Clean-up:** deleting a transaction or group expense queues deletes of its files. After an upload the queue checks the document still lists the file and deletes it if not (e.g. the transaction was deleted meanwhile).
+- **Rules:** Storage allows the owner (personal) or current group members (group, via a cross-service `firestore.get` of `memberIds`) to read and delete, and to upload images (not SVG) or PDFs up to 10 MB. Firestore checks each attachment entry's shape and that its path is directly in that document's folder. A group expense's receipts are written in a second, receipts-only update, which the rules check on their own: with a 20-member split the full expense check leaves no room in the 1000-expression limit for receipts too.
+
 ## Data ownership
 
 - `users/{uid}/**` is private to that user.
 - `groups/{groupId}/**` is readable and writable by `memberIds` only; only the owner can remove other members.
 - `invites/{token}` can be read by anyone who has the token (it is the secret), created and deleted by group members, and accepted by the joining user.
 - A group member may create one settle-up reminder per day in another member's `notifications`.
+- Storage: `users/{uid}/avatar` and `users/{uid}/receipts/**` are the owner's only; `groups/{groupId}/receipts/**` follows the group's `memberIds`.
 
 ## Environments
 

@@ -455,6 +455,36 @@ describe('expenses', () => {
     await assertFails(
       setDoc(ref, newExpense('alice', { amount: 10001, paidBy: each, shares: each })),
     )
+    // The worst case: 20 members and 5 receipts. saveExpense lists receipts in a second write,
+    // which the rules check on its own.
+    const receipts = ['a', 'b', 'c', 'd', 'e'].map((n) => ({
+      path: `groups/big/receipts/full/${n}`,
+      name: `${n}.jpg`,
+      contentType: 'image/jpeg',
+      size: 1000,
+    }))
+    const saved = saveExpense(asDb('alice'), {
+      actor: people.alice as Actor,
+      group: { id: 'big', name: 'Big' },
+      newExpenseId: 'full',
+      attachments: receipts,
+      values: {
+        description: 'Party',
+        amount: 10000,
+        currency: 'INR',
+        date: '2026-10-03',
+        note: '',
+        paidBy: each,
+        splitType: 'equal',
+        splitInput: Object.fromEntries(ids.map((id) => [id, 1])),
+        shares: each,
+      },
+      dateIso: new Date().toISOString(),
+      summary: 'Alice added Party',
+    })
+    await assertSucceeds(saved.commit)
+    const stored = await getDoc(doc(asDb('m3'), 'groups/big/expenses/full'))
+    expect((stored.get('attachments') as unknown[]).length).toBe(5)
   })
 
   it('creates the linked personal expense for my share in the same batch', async () => {
@@ -509,6 +539,83 @@ describe('expenses', () => {
     const ref = doc(asDb('bob'), 'groups/g1/expenses/e1')
     await assertFails(updateDoc(ref, { createdBy: 'bob', updatedAt: serverTimestamp() }))
     await assertFails(updateDoc(ref, { note: 'x' }))
+  })
+})
+
+describe('expense receipts', () => {
+  const file = (expenseId: string, name: string, patch: Record<string, unknown> = {}) => ({
+    path: `groups/g1/receipts/${expenseId}/${name}`,
+    name: `${name}.jpg`,
+    contentType: 'image/jpeg',
+    size: 120_000,
+    ...patch,
+  })
+
+  it('lets a member add an expense with receipts, and others add and remove them', async () => {
+    const values = {
+      description: 'Taxi',
+      amount: 900,
+      currency: 'INR',
+      date: '2026-10-03',
+      note: '',
+      paidBy: { alice: 900 },
+      splitType: 'equal' as const,
+      splitInput: { alice: 1, bob: 1, carol: 1 },
+      shares: { alice: 300, bob: 300, carol: 300 },
+    }
+    const created = saveExpense(asDb('alice'), {
+      actor: people.alice as Actor,
+      group: { id: 'g1', name: 'Goa trip' },
+      newExpenseId: 'taxi',
+      attachments: [file('taxi', 'f1'), file('taxi', 'f2', { contentType: 'application/pdf' })],
+      values,
+      dateIso: new Date().toISOString(),
+      summary: 'Alice added Taxi',
+    })
+    expect(created.expenseId).toBe('taxi')
+    await assertSucceeds(created.commit)
+
+    const ref = doc(asDb('bob'), 'groups/g1/expenses/taxi')
+    await assertSucceeds(
+      updateDoc(ref, { attachments: arrayUnion(file('taxi', 'f3')), updatedAt: serverTimestamp() }),
+    )
+    await assertSucceeds(
+      updateDoc(ref, {
+        attachments: arrayRemove(file('taxi', 'f1')),
+        updatedAt: serverTimestamp(),
+      }),
+    )
+    const stored = groupExpenseSchema.parse(toPlain((await getDoc(ref)).data()))
+    expect(stored.attachments.map((a) => a.path)).toEqual([
+      'groups/g1/receipts/taxi/f2',
+      'groups/g1/receipts/taxi/f3',
+    ])
+  })
+
+  it('rejects receipts from another expense or group, and bad entries', async () => {
+    const ref = doc(asDb('alice'), 'groups/g1/expenses/x')
+    const bad = [
+      file('other', 'f1'),
+      file('x', 'f1', { path: 'groups/g2/receipts/x/f1' }),
+      file('x', 'f1', { path: 'users/alice/receipts/x/f1' }),
+      file('x', 'f1', { contentType: 'application/zip' }),
+      file('x', 'f1', { size: 11 * 1024 * 1024 }),
+    ]
+    for (const entry of bad) {
+      await assertFails(setDoc(ref, newExpense('alice', { attachments: [entry] })))
+    }
+    const six = ['a', 'b', 'c', 'd', 'e', 'f'].map((n) => file('x', n))
+    await assertFails(setDoc(ref, newExpense('alice', { attachments: six })))
+    await assertSucceeds(setDoc(ref, newExpense('alice', { attachments: six.slice(0, 5) })))
+  })
+
+  it('refuses non-members', async () => {
+    await assertFails(
+      updateDoc(doc(asDb('eve'), 'groups/g1/expenses/e1'), {
+        attachments: arrayUnion(file('e1', 'f1')),
+        updatedAt: serverTimestamp(),
+      }),
+    )
   })
 })
 

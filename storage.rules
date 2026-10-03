@@ -1,7 +1,6 @@
 rules_version = '2';
 
-// Phase 2: only the profile photo at users/{uid}/avatar (owner only, images up to 2 MB).
-// Everything else stays denied until receipts arrive in a later phase.
+// Profile photos (phase 2) and receipts (phase 9). Everything else is denied.
 service firebase.storage {
   match /b/{bucket}/o {
 
@@ -9,11 +8,39 @@ service firebase.storage {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    // Current members of the group, read from Firestore (cross-service rules).
+    function isGroupMember(groupId) {
+      return request.auth != null
+        && request.auth.uid in
+          firestore.get(/databases/(default)/documents/groups/$(groupId)).data.memberIds;
+    }
+
+    // Receipts are photos or PDFs up to 10 MB. SVG is refused: it can carry scripts.
+    function isReceiptUpload() {
+      let type = request.resource.contentType;
+      return request.resource.size <= 10 * 1024 * 1024
+        && type != null
+        && ((type.matches('image/[-+.a-zA-Z0-9]+') && type != 'image/svg+xml')
+          || type == 'application/pdf');
+    }
+
     match /users/{uid}/avatar {
       allow read, delete: if isOwner(uid);
       allow create, update: if isOwner(uid)
         && request.resource.size <= 2 * 1024 * 1024
         && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'];
+    }
+
+    // A personal transaction's receipts: only the owner.
+    match /users/{uid}/receipts/{txId}/{fileId} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isReceiptUpload();
+    }
+
+    // A group expense's receipts: any current member of the group.
+    match /groups/{groupId}/receipts/{expenseId}/{fileId} {
+      allow read, delete: if isGroupMember(groupId);
+      allow create, update: if isGroupMember(groupId) && isReceiptUpload();
     }
 
     match /{allPaths=**} {

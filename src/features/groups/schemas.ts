@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { attachmentsField } from '@/features/receipts/schemas'
 import { currencyProblem } from '@/features/transactions/schemas'
 import { CURRENCY_CODE } from '@/utils/currency'
 import { evaluateAmount } from '@/utils/calc'
@@ -133,7 +134,7 @@ export const groupExpenseSchema = z
     splitInput: z.record(z.string(), z.number().nonnegative()),
     shares: minorMap,
     note: z.string().catch(''),
-    attachments: z.array(z.unknown()).catch([]),
+    attachments: attachmentsField,
     ...stamps,
   })
   .refine((e) => sum(e.paidBy) === e.amount && sum(e.shares) === e.amount, {

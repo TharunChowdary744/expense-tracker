@@ -47,6 +47,9 @@ export function getFirebase(): Firebase {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   })
   const storage = getStorage(app)
+  // Receipt uploads are retried by their own queue (features/receipts/queue.ts), so the SDK
+  // gives up sooner than its 10-minute default and lets the queue report and retry.
+  storage.maxUploadRetryTime = 60_000
 
   if (useEmulators) {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })

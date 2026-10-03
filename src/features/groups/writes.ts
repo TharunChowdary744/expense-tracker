@@ -8,11 +8,13 @@ import {
   increment,
   runTransaction,
   serverTimestamp,
+  updateDoc,
   writeBatch,
   type DocumentData,
   type DocumentReference,
   type Firestore,
 } from 'firebase/firestore'
+import type { Attachment } from '@/features/receipts/schemas'
 import { accountDeltas } from '@/features/transactions/utils'
 import { UserFacingError, parseSnapshot } from '@/services/firestore'
 import {
@@ -283,6 +285,10 @@ export interface SaveExpenseArg {
   group: Pick<Group, 'id' | 'name'>
   /** Edit this expense; omit to add one. */
   expenseId?: string
+  /** Id for a new expense (e.g. receipts were uploaded under it); generated when omitted. */
+  newExpenseId?: string
+  /** Receipts listed on a new expense. */
+  attachments?: Attachment[]
   values: GroupExpenseFormValues
   /** When the expense happened (the form's date at local noon), as an ISO string. */
   dateIso: string
@@ -299,7 +305,8 @@ export interface SaveExpenseArg {
 export function saveExpense(db: Firestore, arg: SaveExpenseArg) {
   const { actor, group, expenseId, values, dateIso, summary } = arg
   const date = new Date(dateIso)
-  const ref = expenseId ? doc(expensesCol(db, group.id), expenseId) : doc(expensesCol(db, group.id))
+  const id = expenseId ?? arg.newExpenseId
+  const ref = id ? doc(expensesCol(db, group.id), id) : doc(expensesCol(db, group.id))
   const batch = writeBatch(db)
   const fields = {
     description: values.description,
@@ -378,7 +385,14 @@ export function saveExpense(db: Firestore, arg: SaveExpenseArg) {
       })
     }
   }
-  return { expenseId: ref.id, personalId, commit: batch.commit() }
+  const commits = [batch.commit()]
+  // Receipts go in a second write, started at once (Firestore applies and sends writes in
+  // order, offline too): the rules check a receipts-only update separately, because with a
+  // large group the full expense check leaves no room for them.
+  if (!expenseId && arg.attachments && arg.attachments.length > 0) {
+    commits.push(updateDoc(ref, { attachments: arg.attachments, updatedAt: serverTimestamp() }))
+  }
+  return { expenseId: ref.id, personalId, commit: Promise.all(commits) }
 }
 
 export function deleteExpense(

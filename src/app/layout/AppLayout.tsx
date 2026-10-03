@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router'
 import { useSettleReminders } from '@/features/groups/hooks/useSettleReminders'
+import { useReceiptQueue } from '@/features/receipts/hooks/useReceiptQueue'
 import { useRecurringRunner } from '@/features/recurring/hooks/useRecurringRunner'
 import { useQuickAddShortcut } from '@/features/transactions/hooks/useQuickAddShortcut'
 import { GlobalDialogHost } from '@/features/ui/components/GlobalDialogHost'
@@ -14,6 +15,7 @@ import { TopBar } from './TopBar'
 export function AppLayout() {
   useQuickAddShortcut()
   useRecurringRunner()
+  useReceiptQueue()
   useSettleReminders()
   return (
     <div className="min-h-dvh">

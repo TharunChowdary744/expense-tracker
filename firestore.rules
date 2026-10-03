@@ -60,6 +60,34 @@ service cloud.firestore {
     }
 
     // createdAt/createdBy are set once by the server clock and owner; updatedAt on every write.
+    // Receipts (phase 9): up to 5 { path, name, contentType, size } entries, each a file directly
+    // under this document's own folder in Storage (`prefix`, built from ids that hold only
+    // [A-Za-z0-9_-], so it is safe inside a regex). Rules have no loops, so entries are checked
+    // by index; an empty or unchanged list costs almost nothing, which matters because group
+    // expenses are close to the 1000-expression limit.
+    function isAttachmentList(l, prefix, previous) {
+      return l is list
+        && (l.size() == 0
+          || l == previous
+          || (l.size() <= 5
+            && prefix.matches('[A-Za-z0-9_/-]+')
+            && isAttachment(l[0], prefix)
+            && (l.size() < 2 || isAttachment(l[1], prefix))
+            && (l.size() < 3 || isAttachment(l[2], prefix))
+            && (l.size() < 4 || isAttachment(l[3], prefix))
+            && (l.size() < 5 || isAttachment(l[4], prefix))));
+    }
+
+    // Missing keys fail the field checks, so only extra keys need hasOnly.
+    function isAttachment(a, prefix) {
+      return a.keys().hasOnly(['path', 'name', 'contentType', 'size'])
+        && a.path.matches(prefix + '[A-Za-z0-9_-]{1,64}')
+        && a.name is string && a.name.size() >= 1 && a.name.size() <= 200
+        && a.contentType.matches('image/[-+.a-zA-Z0-9]+|application/pdf')
+        && a.contentType != 'image/svg+xml'
+        && a.size is int && a.size >= 1 && a.size <= 10485760;
+    }
+
     function hasValidStamps(uid) {
       let d = request.resource.data;
       return d.updatedAt == request.time
@@ -163,7 +191,8 @@ service cloud.firestore {
           && d.payee is string && d.payee.size() <= 80
           && d.note is string && d.note.size() <= 500
           && d.tags is list && d.tags.size() <= 10
-          && d.attachments is list && d.attachments.size() <= 10
+          && isAttachmentList(d.attachments,
+               'users/' + uid + '/receipts/' + txId + '/', before.get('attachments', null))
           && isOptionalString(d, 'recurringId', 100)
           && isOptionalString(d, 'occurrenceKey', 100)
           && isOptionalString(d, 'groupExpenseRef', 300)
@@ -441,7 +470,9 @@ service cloud.firestore {
       // ---- expenses ----
       match /expenses/{expenseId} {
         allow read, delete: if isGroupMember(groupId);
-        allow create, update: if isGroupMember(groupId) && isValidGroupExpense(groupId);
+        allow create: if isGroupMember(groupId) && isValidGroupExpense(groupId, expenseId);
+        allow update: if isGroupMember(groupId)
+          && (isReceiptsUpdate(groupId, expenseId) || isValidGroupExpense(groupId, expenseId));
       }
 
       // ---- settlements (a payment from one member to another; delete to undo) ----
@@ -668,7 +699,7 @@ service cloud.firestore {
         && (m == previous || m.keys().hasOnly(memberIds));
     }
 
-    function isValidGroupExpense(groupId) {
+    function isValidGroupExpense(groupId, expenseId) {
       let d = request.resource.data;
       let before = resource == null ? {} : resource.data;
       let group = get(groupPath(groupId)).data;
@@ -684,7 +715,8 @@ service cloud.firestore {
         && d.date is timestamp
         && isOptionalString(d, 'categoryId', 40)
         && d.note is string && d.note.size() <= 500
-        && d.attachments is list && d.attachments.size() <= 10
+        && isAttachmentList(d.attachments,
+             'groups/' + groupId + '/receipts/' + expenseId + '/', before.get('attachments', null))
         && d.splitType in ['equal', 'exact', 'percent', 'shares']
         && isMemberMap(d.paidBy, before.get('paidBy', null), group.memberIds)
         && isMemberMap(d.shares, before.get('shares', null), group.memberIds)
@@ -693,6 +725,17 @@ service cloud.firestore {
         && isPartsTotal(sumOfParts(d.paidBy.values()), d.amount)
         && isPartsTotal(sumOfParts(d.shares.values()), d.amount)
         && hasValidStamps(request.auth.uid);
+    }
+
+    // Adding or removing receipts only. Checked on its own because a full expense check for a
+    // large group leaves no room in the expression limit for the receipts as well, so the app
+    // lists a new expense's receipts in a second write.
+    function isReceiptsUpdate(groupId, expenseId) {
+      let d = request.resource.data;
+      return d.diff(resource.data).affectedKeys().hasOnly(['attachments', 'updatedAt'])
+        && d.updatedAt == request.time
+        && isAttachmentList(d.attachments, 'groups/' + groupId + '/receipts/' + expenseId + '/',
+             resource.data.attachments);
     }
 
     function isValidSettlement(groupId) {

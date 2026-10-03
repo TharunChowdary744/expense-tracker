@@ -27,6 +27,8 @@ import {
   reportInvalid,
   type AnyDispatch,
 } from '@/services/firestore'
+import type { Attachment } from '@/features/receipts/schemas'
+import { enqueueDeletes } from '@/features/receipts/queue'
 import { hasClientFilters, matchesQuery, serverPlan, type TxQuery } from './filters'
 import { transactionSchema, type TransactionFormValues } from './schemas'
 import type { BalanceTransaction, Transaction } from './types'
@@ -154,6 +156,11 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
   return out
 }
 
+/** An id for a transaction about to be created (its receipts upload under it first). */
+export function newTransactionId(uid: string): string {
+  return doc(txCol(getFirebase().db, uid)).id
+}
+
 export const transactionsApi = api.injectEndpoints({
   endpoints: (build) => ({
     /**
@@ -215,18 +222,21 @@ export const transactionsApi = api.injectEndpoints({
         values: TransactionFormValues
         dateIso: string
         currencies: AccountCurrencies
+        /** Use this id (from newTransactionId), e.g. when receipts were uploaded under it. */
+        id?: string
+        attachments?: Attachment[]
       }
     >({
-      queryFn: ({ uid, values, dateIso, currencies }, { dispatch }) =>
+      queryFn: ({ uid, values, dateIso, currencies, id, attachments = [] }, { dispatch }) =>
         firestoreWrite(dispatch, 'Could not save the transaction', () => {
           const db = getFirebase().db
           const batch = writeBatch(db)
-          const ref = doc(txCol(db, uid))
+          const ref = id ? doc(txCol(db, uid), id) : doc(txCol(db, uid))
           batch.set(ref, {
             ...toFields(values, dateIso),
             ...(values.toAccountId ? { toAccountId: values.toAccountId } : {}),
             ...(values.categoryId ? { categoryId: values.categoryId } : {}),
-            attachments: [],
+            attachments,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             createdBy: uid,
@@ -261,7 +271,10 @@ export const transactionsApi = api.injectEndpoints({
         }),
     }),
 
-    /** Deletes transactions and reverses their balance changes, in batches of BULK_CHUNK. */
+    /**
+     * Deletes transactions and reverses their balance changes, in batches of BULK_CHUNK. Their
+     * receipt files are queued for deletion too (run when online).
+     */
     deleteTransactions: build.mutation<
       null,
       { uid: string; transactions: Transaction[]; currencies: AccountCurrencies }
@@ -275,6 +288,11 @@ export const transactionsApi = api.injectEndpoints({
             applyBalanceChanges(batch, db, uid, part, [], currencies)
             return batch.commit()
           })
+          for (const tx of transactions) {
+            if (tx.attachments.length > 0) {
+              enqueueDeletes({ kind: 'tx', uid, id: tx.id }, tx.attachments)
+            }
+          }
           return { commit: Promise.all(commits), result: null }
         }),
       invalidatesTags: [LIST],

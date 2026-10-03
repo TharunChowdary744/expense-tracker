@@ -1,4 +1,6 @@
-import { getDoc, limit, orderBy, query, where } from 'firebase/firestore'
+import { doc, getDoc, limit, orderBy, query, where } from 'firebase/firestore'
+import { enqueueDeletes } from '@/features/receipts/queue'
+import type { Attachment } from '@/features/receipts/schemas'
 import { getFirebase } from '@/lib/firebase'
 import { api } from '@/services/api'
 import {
@@ -44,6 +46,11 @@ import {
 } from './writes'
 
 const LIST = { type: 'Group' as const, id: 'LIST' }
+
+/** An id for an expense about to be added (its receipts upload under it first). */
+export function newGroupExpenseId(groupId: string): string {
+  return doc(expensesCol(getFirebase().db, groupId)).id
+}
 
 export interface GroupArg {
   /** The signed-in user, so listener errors after sign-out stay quiet. */
@@ -220,15 +227,25 @@ export const groupsApi = api.injectEndpoints({
         }),
     }),
 
+    /** Deletes an expense and queues its receipt files for deletion. */
     deleteGroupExpense: build.mutation<
       null,
-      { actor: Actor; groupId: string; expenseId: string; summary: string }
+      {
+        actor: Actor
+        groupId: string
+        expenseId: string
+        summary: string
+        attachments: Attachment[]
+      }
     >({
-      queryFn: ({ actor, groupId, expenseId, summary }, { dispatch }) =>
-        firestoreWrite(dispatch, 'Could not delete the expense', () => ({
-          commit: deleteExpense(getFirebase().db, actor, groupId, expenseId, summary),
-          result: null,
-        })),
+      queryFn: ({ actor, groupId, expenseId, summary, attachments }, { dispatch }) =>
+        firestoreWrite(dispatch, 'Could not delete the expense', () => {
+          const commit = deleteExpense(getFirebase().db, actor, groupId, expenseId, summary)
+          if (attachments.length > 0) {
+            enqueueDeletes({ kind: 'group', uid: actor.uid, groupId, id: expenseId }, attachments)
+          }
+          return { commit, result: null }
+        }),
     }),
 
     recordSettlement: build.mutation<{ id: string }, SettlementArg>({
