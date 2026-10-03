@@ -353,7 +353,7 @@ describe('expenses', () => {
       actor: people.bob as Actor,
       group: { id: 'g1', name: 'Goa trip' },
       values,
-      date: new Date(),
+      dateIso: new Date().toISOString(),
       summary: 'Bob added Groceries',
     })
     await assertSucceeds(created.commit)
@@ -363,7 +363,7 @@ describe('expenses', () => {
         group: { id: 'g1', name: 'Goa trip' },
         expenseId: created.expenseId,
         values: { ...values, categoryId: 'groceries', description: 'Groceries (market)' },
-        date: new Date(),
+        dateIso: new Date().toISOString(),
         summary: 'Bob edited Groceries',
       }).commit,
     )
@@ -493,7 +493,7 @@ describe('expenses', () => {
           baseAmount: 33333,
         },
       },
-      date: new Date(),
+      dateIso: new Date().toISOString(),
       summary: 'Bob added Dinner',
       accountCurrencies: { cash: 'INR' },
     })
@@ -520,7 +520,7 @@ describe('settlements and activity', () => {
       fromUid: 'bob',
       toUid: 'alice',
       amount: 20000,
-      date: new Date(),
+      dateIso: new Date().toISOString(),
       note: 'UPI',
       summary: 'Bob paid Alice ₹200.00',
     })

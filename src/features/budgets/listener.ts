@@ -1,4 +1,5 @@
 import { createListenerMiddleware, isAnyOf } from '@reduxjs/toolkit'
+import { groupsApi } from '@/features/groups/api'
 import { recurringApi } from '@/features/recurring/api'
 import { transactionsApi } from '@/features/transactions/api'
 import { toastAdded } from '@/features/ui/slice'
@@ -10,6 +11,8 @@ const { createTransaction, updateTransaction, deleteTransactions, recategorizeTr
 
 const { runRecurring, confirmOccurrence } = recurringApi.endpoints
 
+const { saveGroupExpense } = groupsApi.endpoints
+
 const transactionWritten = isAnyOf(
   createTransaction.matchFulfilled,
   updateTransaction.matchFulfilled,
@@ -17,6 +20,7 @@ const transactionWritten = isAnyOf(
   recategorizeTransactions.matchFulfilled,
   runRecurring.matchFulfilled,
   confirmOccurrence.matchFulfilled,
+  saveGroupExpense.matchFulfilled,
 )
 
 /** The transaction dates a write touched, so backdated entries are checked in their period. */
@@ -38,6 +42,8 @@ export function affectedDates(action: {
       return [(args.before as { date: string }).date, args.dateIso as string]
     case 'deleteTransactions':
       return (args.transactions as { date: string }[]).map((t) => t.date)
+    case 'saveGroupExpense':
+      return [args.dateIso as string]
     default:
       return []
   }
@@ -58,7 +64,11 @@ budgetAlerts.startListening({
     if (!transactionWritten(action)) return
     // A catch-up run that found nothing to post wrote no transactions.
     if (runRecurring.matchFulfilled(action) && action.payload.posted === 0) return
-    const uid = (action.meta.arg.originalArgs as { uid: string }).uid
+    // A group expense only touches personal spending when it adds the user's share.
+    if (saveGroupExpense.matchFulfilled(action) && !action.payload.personalId) return
+    const uid = saveGroupExpense.matchFulfilled(action)
+      ? action.meta.arg.originalArgs.actor.uid
+      : (action.meta.arg.originalArgs as { uid: string }).uid
     const dates = affectedDates(action)
     queue = queue
       .then(async () => {

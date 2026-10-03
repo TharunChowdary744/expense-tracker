@@ -76,7 +76,7 @@ function addActivity(
 }
 
 /** Stored display names are 1–80 characters. */
-export function memberName(actor: Pick<Actor, 'displayName' | 'email'>): string {
+export function actorName(actor: Pick<Actor, 'displayName' | 'email'>): string {
   const name = actor.displayName.trim() || actor.email.split('@')[0] || 'Member'
   return name.slice(0, 80)
 }
@@ -94,7 +94,7 @@ export function createGroup(db: Firestore, actor: Actor, values: GroupFormValues
     memberIds: [actor.uid],
     members: {
       [actor.uid]: {
-        displayName: memberName(actor),
+        displayName: actorName(actor),
         email: actor.email.toLowerCase(),
         role: 'owner',
       },
@@ -110,7 +110,7 @@ export function createGroup(db: Firestore, actor: Actor, values: GroupFormValues
     ref.id,
     actor.uid,
     'group-created',
-    `${memberName(actor)} created the group`,
+    `${actorName(actor)} created the group`,
   )
   return { groupId: ref.id, commit: batch.commit() }
 }
@@ -151,7 +151,7 @@ export function createInvite(
     groupEmoji: group.emoji,
     invitedEmail: email ?? null,
     invitedBy: actor.uid,
-    invitedByName: memberName(actor),
+    invitedByName: actorName(actor),
     expiresAt: Timestamp.fromMillis(now.getTime() + INVITE_DAYS * 24 * 60 * 60 * 1000),
     ...stamps(actor.uid),
   })
@@ -199,7 +199,7 @@ export async function joinGroup(
     if (status.kind !== 'ok') throw new UserFacingError(inviteProblem(status.kind))
 
     const email = actor.email.toLowerCase()
-    const name = memberName(actor)
+    const name = actorName(actor)
     tx.update(groupRef(db, invite.groupId), {
       memberIds: arrayUnion(actor.uid),
       [`members.${actor.uid}`]: { displayName: name, email, role: 'member', joinedVia: token },
@@ -248,7 +248,7 @@ export function leaveGroup(
       : {}),
     updatedAt: serverTimestamp(),
   })
-  addActivity(batch, db, group.id, actor.uid, 'member-left', `${memberName(actor)} left the group`)
+  addActivity(batch, db, group.id, actor.uid, 'member-left', `${actorName(actor)} left the group`)
   return batch.commit()
 }
 
@@ -270,7 +270,7 @@ export function removeMember(
     groupId,
     actor.uid,
     'member-removed',
-    `${memberName(actor)} removed ${target.displayName}`,
+    `${actorName(actor)} removed ${target.displayName}`,
   )
   return batch.commit()
 }
@@ -284,8 +284,8 @@ export interface SaveExpenseArg {
   /** Edit this expense; omit to add one. */
   expenseId?: string
   values: GroupExpenseFormValues
-  /** When the expense happened (the form's date at local noon). */
-  date: Date
+  /** When the expense happened (the form's date at local noon), as an ISO string. */
+  dateIso: string
   summary: string
   /** Currencies of the actor's accounts, for the linked personal expense's balance change. */
   accountCurrencies?: Record<string, string>
@@ -297,7 +297,8 @@ export interface SaveExpenseArg {
  * account's cached balance, in the same batch.
  */
 export function saveExpense(db: Firestore, arg: SaveExpenseArg) {
-  const { actor, group, expenseId, values, date, summary } = arg
+  const { actor, group, expenseId, values, dateIso, summary } = arg
+  const date = new Date(dateIso)
   const ref = expenseId ? doc(expensesCol(db, group.id), expenseId) : doc(expensesCol(db, group.id))
   const batch = writeBatch(db)
   const fields = {
@@ -402,7 +403,8 @@ export interface SettlementArg {
   fromUid: string
   toUid: string
   amount: number
-  date: Date
+  /** ISO string. */
+  dateIso: string
   note: string
   summary: string
 }
@@ -414,7 +416,7 @@ export function recordSettlement(db: Firestore, arg: SettlementArg) {
     fromUid: arg.fromUid,
     toUid: arg.toUid,
     amount: arg.amount,
-    date: Timestamp.fromDate(arg.date),
+    date: Timestamp.fromDate(new Date(arg.dateIso)),
     note: arg.note,
     ...stamps(arg.actor.uid),
   })
