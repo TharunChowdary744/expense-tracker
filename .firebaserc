@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "ledgerly-dev",
+    "dev": "ledgerly-dev",
+    "test": "ledgerly-test",
+    "prod": "ledgerly-prod"
+  }
+}
