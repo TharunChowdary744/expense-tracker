@@ -226,6 +226,7 @@ export async function renderStatementPdf(data: StatementData, locale?: string): 
       money(r.amount),
     ]),
     foot: [['', '', '', 'Net', money(data.totals.net)]],
+    showFoot: 'lastPage',
     theme: 'striped',
     headStyles: head,
     footStyles: { fillColor: [235, 235, 235], textColor: 20 },
