@@ -82,10 +82,10 @@ describe('users/{uid}', () => {
 })
 
 describe('default deny', () => {
-  it('denies reads and writes outside users/{uid}, even for signed-in users', async () => {
-    await assertFails(getDoc(doc(alice(), 'groups/g1')))
+  it('denies reads and writes to unknown or invalid paths, even for signed-in users', async () => {
+    await assertFails(getDoc(doc(bob(), 'groups/g1')))
     await assertFails(setDoc(doc(alice(), 'groups/g2'), { name: 'New' }))
-    await assertFails(getDoc(doc(alice(), 'invites/tok')))
+    // invites/{token} are readable by anyone who has the token (groups.rules.test.ts).
     await assertFails(setDoc(doc(alice(), 'invites/tok2'), { groupId: 'g1' }))
     await assertFails(setDoc(doc(alice(), 'anything/else'), { a: 1 }))
     await assertFails(getDocs(collection(alice(), 'groups')))

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const NOTIFICATION_TYPES = ['budget-threshold'] as const
+export const NOTIFICATION_TYPES = ['budget-threshold', 'settle-reminder'] as const
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
 
 export const NOTIFICATION_TITLE_MAX = 120

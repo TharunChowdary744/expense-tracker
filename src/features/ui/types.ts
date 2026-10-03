@@ -18,3 +18,5 @@ export type GlobalDialog =
   | { kind: 'edit-recurring'; rule: RecurringRule }
   | { kind: 'edit-transaction'; transaction: Transaction; duplicate?: boolean }
   | { kind: 'confirm'; title: string; description?: string }
+  /** Rendered by the group page itself (the "+" button opens it on a group's page). */
+  | { kind: 'group-expense'; groupId: string }

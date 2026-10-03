@@ -110,6 +110,18 @@ export const routes: RouteObject[] = [
             }),
           },
           {
+            path: 'groups/:groupId',
+            lazy: async () => ({
+              Component: (await import('@/features/groups/pages/GroupDetailPage')).GroupDetailPage,
+            }),
+          },
+          {
+            path: 'join/:token',
+            lazy: async () => ({
+              Component: (await import('@/features/groups/pages/JoinGroupPage')).JoinGroupPage,
+            }),
+          },
+          {
             path: 'reports',
             lazy: async () => ({
               Component: (await import('@/features/reports/pages/ReportsPage')).ReportsPage,

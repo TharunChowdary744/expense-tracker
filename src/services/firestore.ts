@@ -174,6 +174,11 @@ interface ListenerOptions<Arg> {
   label: string
   /** The owner uid, so errors caused by signing out are not reported. */
   uidOf: (arg: Arg) => string | undefined
+  /**
+   * Losing access is expected here (e.g. leaving or being removed from a shared group), so a
+   * permission-denied listener error isn't reported; a doc listener then reads as missing.
+   */
+  deniedMeansGone?: boolean
 }
 
 /** The parts of RTK Query's lifecycle API the listeners use. */
@@ -235,7 +240,7 @@ export function collectionListener<Arg, S extends z.ZodType<object>>(
   },
 ) {
   type Data = Stored<z.output<S>>[]
-  const { label, uidOf, schema, sort } = options
+  const { label, uidOf, schema, sort, deniedMeansGone = false } = options
   const toItems = (snap: QuerySnapshot, dispatch: AnyDispatch): Data => {
     const { items, invalid } = parseQuerySnapshot(snap, schema)
     reportInvalid(dispatch, label, invalid)
@@ -266,7 +271,10 @@ export function collectionListener<Arg, S extends z.ZodType<object>>(
           const items = toItems(snap, api.dispatch)
           api.updateCachedData(() => items)
         },
-        (error) => reportListenerError(api.dispatch, label, uidOf(arg), error),
+        (error) => {
+          if (deniedMeansGone && error.code === 'permission-denied') return
+          reportListenerError(api.dispatch, label, uidOf(arg), error)
+        },
       )
       await api.cacheEntryRemoved
       unsubscribe()
@@ -282,7 +290,7 @@ export function docListener<Arg, S extends z.ZodType<object>>(
   },
 ) {
   type Data = Stored<z.output<S>> | null
-  const { label, uidOf, schema } = options
+  const { label, uidOf, schema, deniedMeansGone = false } = options
   const toItem = (snap: DocumentSnapshot, dispatch: AnyDispatch): Data => {
     if (!snap.exists()) return null
     const parsed = parseSnapshot(snap, schema)
@@ -314,7 +322,13 @@ export function docListener<Arg, S extends z.ZodType<object>>(
           const item = toItem(snap, api.dispatch)
           api.updateCachedData(() => item)
         },
-        (error) => reportListenerError(api.dispatch, label, uidOf(arg), error),
+        (error) => {
+          if (deniedMeansGone && error.code === 'permission-denied') {
+            api.updateCachedData(() => null)
+            return
+          }
+          reportListenerError(api.dispatch, label, uidOf(arg), error)
+        },
       )
       await api.cacheEntryRemoved
       unsubscribe()
