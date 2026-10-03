@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Account } from '@/features/accounts/types'
@@ -204,5 +204,87 @@ describe('TransactionForm', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ categoryId: 'Salary', note: 'September' }),
     )
+  })
+
+  describe('Make recurring', () => {
+    it('is offered for a new transaction but not when editing one', () => {
+      setup({ recurring: 'toggle' })
+      expect(screen.getByRole('switch', { name: /Make recurring/ })).not.toBeChecked()
+      cleanup()
+      const tx: Transaction = {
+        id: 't1',
+        type: 'expense',
+        amount: 500,
+        currency: 'INR',
+        fxRateToBase: 1,
+        baseAmount: 500,
+        accountId: 'bank',
+        tags: [],
+        payee: '',
+        note: '',
+        date: '2026-09-30T06:30:00.000Z',
+        attachments: [],
+        ...stamps,
+      }
+      setup({ recurring: 'toggle', initial: tx })
+      expect(screen.queryByRole('switch', { name: /Make recurring/ })).toBeNull()
+    })
+
+    it('creates a monthly rule on the 31st that posts automatically', async () => {
+      const { onSubmit, user } = setup({ recurring: 'toggle' })
+      await user.type(amount(), '25000')
+      await user.selectOptions(screen.getByLabelText('Category'), 'Rent')
+      await user.clear(screen.getByLabelText('Date'))
+      await user.type(screen.getByLabelText('Date'), '2026-01-31')
+      await user.click(screen.getByRole('switch', { name: /Make recurring/ }))
+      expect(screen.getByLabelText('Starts')).toHaveValue('2026-01-31')
+      expect(screen.getByLabelText('On')).toHaveDisplayValue('The 31st (like the start date)')
+      expect(screen.getByText(/In shorter months it falls on the last day/)).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Create recurring expense' }))
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 2500000,
+          categoryId: 'Rent',
+          date: '2026-01-31',
+          recurrence: { frequency: 'monthly', interval: 1, byMonthDay: 31, mode: 'auto' },
+        }),
+      )
+    })
+
+    it('creates a weekly reminder on chosen days that ends after 4 times', async () => {
+      const { onSubmit, user } = setup({ recurring: 'toggle', startRecurring: true })
+      await user.type(amount(), '500')
+      await user.selectOptions(screen.getByLabelText('Repeats'), 'weekly')
+      await user.click(screen.getByRole('button', { name: 'Monday' }))
+      await user.click(screen.getByRole('button', { name: 'Thursday' }))
+      expect(screen.getByRole('button', { name: 'Monday' })).toHaveAttribute('aria-pressed', 'true')
+      await user.selectOptions(screen.getByLabelText('Ends'), 'after')
+      await user.clear(screen.getByLabelText('Times'))
+      await user.type(screen.getByLabelText('Times'), '4')
+      await user.click(screen.getByRole('radio', { name: /Remind me to confirm/ }))
+      await user.click(screen.getByRole('button', { name: 'Create recurring expense' }))
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 50000,
+          recurrence: {
+            frequency: 'weekly',
+            interval: 1,
+            byWeekday: [1, 4],
+            maxOccurrences: 4,
+            mode: 'remind',
+          },
+        }),
+      )
+    })
+
+    it('shows schedule errors instead of submitting', async () => {
+      const { onSubmit, user } = setup({ recurring: 'toggle', startRecurring: true })
+      await user.type(amount(), '500')
+      await user.clear(screen.getByLabelText('Interval'))
+      await user.type(screen.getByLabelText('Interval'), '0')
+      await user.click(screen.getByRole('button', { name: 'Create recurring expense' }))
+      expect(await screen.findByText('Enter a whole number, 1 or more')).toBeInTheDocument()
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
   })
 })
