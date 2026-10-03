@@ -35,6 +35,15 @@ export function Toaster() {
               {t.description}
             </Primitive.Description>
           )}
+          {t.action && (
+            <Primitive.Action
+              altText={t.action.altText}
+              onClick={() => t.action && dispatch(t.action.onAction)}
+              className="mt-1 inline-flex h-8 w-fit items-center rounded-md border px-3 text-sm font-medium hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              {t.action.label}
+            </Primitive.Action>
+          )}
           <Primitive.Close
             aria-label="Dismiss notification"
             className="absolute top-2.5 right-2.5 rounded-sm p-1 opacity-70 hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"

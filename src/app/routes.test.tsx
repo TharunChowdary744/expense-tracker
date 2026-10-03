@@ -48,7 +48,10 @@ describe('routes', () => {
 describe('auth guards', () => {
   it('sends signed-out visitors to sign-in and remembers where they were going', async () => {
     const router = renderAt('/transactions?tab=all', null)
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    // The router first loads the lazy transactions page module, which is large on a cold run.
+    expect(
+      await screen.findByRole('heading', { name: 'Sign in' }, { timeout: 5000 }),
+    ).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/sign-in')
     expect(router.state.location.state).toEqual({ from: '/transactions?tab=all' })
   })

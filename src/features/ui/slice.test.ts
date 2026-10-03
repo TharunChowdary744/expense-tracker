@@ -20,3 +20,21 @@ describe('ui slice', () => {
     expect(state.dialog).toBeNull()
   })
 })
+
+describe('toasts with ids and actions', () => {
+  it('keeps a given id and an action', () => {
+    const state = uiReducer(
+      undefined,
+      toastAdded({
+        id: 'fixed',
+        title: 'Deleted',
+        action: { label: 'Undo', altText: 'Undo delete', onAction: { type: 'x/undo' } },
+      }),
+    )
+    expect(state.toasts[0]).toMatchObject({
+      id: 'fixed',
+      variant: 'default',
+      action: { label: 'Undo' },
+    })
+  })
+})

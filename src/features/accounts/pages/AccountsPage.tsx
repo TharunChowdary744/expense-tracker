@@ -26,7 +26,7 @@ export function AccountsPage() {
   const [showArchived, setShowArchived] = useState(false)
   const [dialog, setDialog] = useState<DialogState>({ mode: 'closed' })
 
-  // Transactions arrive in phase 3; until then every balance is the opening balance.
+  // Opening balance plus the cached transaction total kept on each account doc.
   const balances = useMemo(
     () => new Map((accounts ?? []).map((a) => [a.id, accountBalance(a)])),
     [accounts],

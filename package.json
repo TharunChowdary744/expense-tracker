@@ -20,6 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "emulators": "firebase emulators:start --project demo-ledgerly",
+    "seed:transactions": "node scripts/seed-transactions.ts",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -37,6 +38,7 @@
     "@reduxjs/toolkit": "^2.13.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
     "firebase": "^12.19.0",
     "lucide-react": "^1.49.0",
     "radix-ui": "^1.6.7",

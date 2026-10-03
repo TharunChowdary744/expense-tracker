@@ -23,16 +23,16 @@ There is no custom server. Anything that must be trusted is enforced by security
 
 ## Key decisions
 
-| Decision                                             | Reason                                                                                        |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Client-only, Firebase direct                         | Small ops surface; rules give per-document authorisation                                      |
-| RTK Query for all Firestore access                   | One cache, consistent loading/error states, real-time via `onSnapshot` with clean unsubscribe |
-| Feature-sliced folders                               | Each feature owns its endpoints, schemas, UI, and tests                                       |
-| Integer minor units for money                        | Avoid float rounding; deterministic split allocation                                          |
-| Balances derived from transactions                   | One source of truth; optional cached field only if updated in the same batch                  |
-| Multi-doc writes via `writeBatch` / `runTransaction` | Transfers and settlements stay atomic                                                         |
-| zod on forms and on Firestore reads                  | Same schema guards user input and stored data                                                 |
-| One custom service worker (`injectManifest`)         | Workbox offline caching and FCM push share a single SW                                        |
+| Decision                                             | Reason                                                                                               |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Client-only, Firebase direct                         | Small ops surface; rules give per-document authorisation                                             |
+| RTK Query for all Firestore access                   | One cache, consistent loading/error states, real-time via `onSnapshot` with clean unsubscribe        |
+| Feature-sliced folders                               | Each feature owns its endpoints, schemas, UI, and tests                                              |
+| Integer minor units for money                        | Avoid float rounding; deterministic split allocation                                                 |
+| Balances derived from transactions                   | Cached `txTotal` per account, changed with `increment()` in the same batch as each transaction write |
+| Multi-doc writes via `writeBatch` / `runTransaction` | Transfers and settlements stay atomic                                                                |
+| zod on forms and on Firestore reads                  | Same schema guards user input and stored data                                                        |
+| One custom service worker (`injectManifest`)         | Workbox offline caching and FCM push share a single SW                                               |
 
 ## Firestore access pattern
 
@@ -42,6 +42,13 @@ There is no custom server. Anything that must be trusted is enforced by security
 - Every document goes through `toPlain` (Timestamps become ISO strings) and its zod schema. Invalid docs are skipped and reported once. Items carry `id` and `pending` (unsynced local changes).
 - `firestoreWrite` returns `{ data }` or `{ error }` with a friendly message. It waits for the server for a short grace period, or not at all while offline; Firestore applies the write locally and syncs later, and a late rejection shows a toast.
 - Mutations invalidate the feature's `LIST` tag; the live listener usually updates the cache first.
+
+## Transactions
+
+- **Balances:** an account's balance is `openingBalance + txTotal`. Each side of a transaction moves its account by `amount` when the account holds the transaction currency, otherwise by `baseAmount` (only allowed when that account holds the base currency). Aggregate queries were rejected: they don't run offline, aren't live, and need several queries per account.
+- **List:** an RTK Query infinite query with cursor pagination (`startAfter` on the sort field and doc id). Firestore does the type filter, the sort and the date range (date sorts only). Accounts, categories, tags, amount and search are filtered on the client while paging, reading at most 500 docs per page request. Indexes are in `firestore.indexes.json`.
+- **Live updates:** a one-doc listener on the newest `updatedAt` invalidates the list when a transaction is added or edited.
+- **Undo delete:** rows are hidden in the `transactions` slice, and the delete batch is written after 5 s unless undone.
 
 ## Data ownership
 

@@ -10,6 +10,7 @@ const existing: Account = {
   type: 'card',
   currency: 'USD',
   openingBalance: -12345,
+  txTotal: 0,
   color: '#dc2626',
   icon: 'credit-card',
   archived: false,

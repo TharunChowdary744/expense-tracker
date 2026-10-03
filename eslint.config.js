@@ -26,7 +26,7 @@ export default tseslint.config(
     rules: { 'react-refresh/only-export-components': 'off' },
   },
   {
-    files: ['*.config.{ts,js}', 'e2e/**/*.ts', 'rules-tests/**/*.ts'],
+    files: ['*.config.{ts,js}', 'e2e/**/*.ts', 'rules-tests/**/*.ts', 'scripts/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
   prettier,

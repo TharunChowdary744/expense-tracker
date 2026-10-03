@@ -163,3 +163,33 @@ function assertMinor(value: number): void {
 export function isMinor(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value)
 }
+
+/** Up to 12 whole digits and 10 decimal places. */
+const RATE = /^(\d{1,12})(?:\.(\d{1,10}))?$/
+
+/** Exchange rates are positive decimal strings, e.g. "83.2512". */
+export function isValidRate(rate: string): boolean {
+  const match = RATE.exec(rate.trim())
+  return match !== null && /[1-9]/.test(`${match[1]}${match[2] ?? ''}`)
+}
+
+/**
+ * Converts minor units of `from` to minor units of `to` at `rate` (1 `from` = `rate` `to`),
+ * rounding half away from zero. The rate is a decimal string so no float touches the money:
+ * convertMinor(1250, 'USD', 'INR', '83.5') → 104375 (₹1,043.75).
+ */
+export function convertMinor(amountMinor: number, from: string, to: string, rate: string): number {
+  assertMinor(amountMinor)
+  if (!isValidRate(rate)) throw new RangeError(`Not a valid exchange rate: "${rate}"`)
+  const [, whole = '0', frac = ''] = RATE.exec(rate.trim()) as RegExpExecArray
+  const rateScaled = BigInt(`${whole}${frac}`)
+  const num = BigInt(Math.abs(amountMinor)) * rateScaled * 10n ** BigInt(currencyDigits(to))
+  const den = 10n ** BigInt(frac.length + currencyDigits(from))
+  let result = num / den
+  if ((num % den) * 2n >= den) result += 1n
+  if (result > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new RangeError('Converted amount is too large')
+  }
+  const value = Number(result)
+  return amountMinor < 0 && value !== 0 ? -value : value
+}

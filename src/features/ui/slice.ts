@@ -16,8 +16,10 @@ const uiSlice = createSlice({
       reducer(state, action: PayloadAction<Toast>) {
         state.toasts.push(action.payload)
       },
-      prepare(toast: Omit<Toast, 'id' | 'variant'> & { variant?: Toast['variant'] }) {
-        return { payload: { id: nanoid(), variant: 'default' as const, ...toast } }
+      prepare(toast: Omit<Toast, 'id' | 'variant'> & { id?: string; variant?: Toast['variant'] }) {
+        return {
+          payload: { ...toast, id: toast.id ?? nanoid(), variant: toast.variant ?? 'default' },
+        }
       },
     },
     toastDismissed(state, action: PayloadAction<string>) {
