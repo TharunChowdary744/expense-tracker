@@ -50,6 +50,14 @@ There is no custom server. Anything that must be trusted is enforced by security
 - **Live updates:** a one-doc listener on the newest `updatedAt` invalidates the list when a transaction is added or edited.
 - **Undo delete:** rows are hidden in the `transactions` slice, and the delete batch is written after 5 s unless undone.
 
+## Budgets
+
+- **Status is derived, never stored:** `computeBudgetStatus(budget, transactions, period, options)` in `features/budgets/utils.ts` is a pure function. Spend is the `baseAmount` of expenses in the budget's categories (a parent includes its subcategories); an empty `categoryIds` means every expense.
+- **Periods are calendar dates** (`yyyy-MM-dd`, end exclusive) in the user's timezone, built by `src/utils/dates.ts` with an explicit IANA timezone, so the maths is testable in any zone. Weekly periods follow `settings.weekStartsOn`.
+- **Rollover** carries one period: last period's amount minus its spend (negative when overspent). It never carries from a period that ended before `startDate`, which is set to the start of the previous period when a budget is created, so last period's leftover applies at once.
+- **Data:** one live query per page for expenses in the needed date range (`type == expense`, date range; uses the existing type + date index).
+- **Alerts:** a listener middleware (`features/budgets/listener.ts`) runs after every transaction create, edit, delete or re-categorise. It checks the current period plus the periods of the written dates and creates missing `users/{uid}/notifications/budget_<budgetId>_<periodKey>_<threshold>` docs, then shows a toast. The doc id is the dedupe key; rules make notifications create-once with only `read` editable afterwards. Respects `notificationPrefs.budgetAlerts`.
+
 ## Data ownership
 
 - `users/{uid}/**` is private to that user.
