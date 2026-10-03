@@ -37,7 +37,7 @@ Local development uses `.env.local` (git-ignored), copied from `.env.example`.
 ## One-time setup (owner)
 
 1. **Create three Firebase projects** (`ledgerly-dev`, `ledgerly-test`, `ledgerly-prod`). In each: add a Web app, enable Authentication, Firestore, Storage and Cloud Messaging, and generate a Web Push key pair.
-2. **Create a deploy service account** in each project: Google Cloud console → IAM → Service accounts → Create. Grant `Firebase Admin` (or, narrower: `Firebase Hosting Admin`, `Firebase Rules Admin`, `Cloud Datastore Index Admin`, `Service Account User`). Create a JSON key and download it.
+2. **Create a deploy service account** in each project: Google Cloud console → IAM → Service accounts → Create. Grant `Firebase Admin` **and** `Service Usage Consumer` (or, narrower: `Firebase Hosting Admin`, `Firebase Rules Admin`, `Cloud Datastore Index Admin`, `Service Account User`, `Service Usage Consumer`). `firebase deploy` checks that each product's API is enabled before deploying it; without `Service Usage Consumer` it fails with `403 Permission denied to get service [firebasestorage.googleapis.com]`. Create a JSON key and download it.
 3. **Create GitHub Environments**: repo → Settings → Environments → New environment, named exactly `dev`, `test`, `prod`. Add the secrets from the table to each.
    - On `prod`, add yourself under **Required reviewers** so production deploys wait for your approval.
    - Optionally restrict each environment's **Deployment branches** to its branch (`develop`, `test`, `prod`).
