@@ -91,6 +91,13 @@ export const routes: RouteObject[] = [
             }),
           },
           {
+            path: 'budgets/:budgetId',
+            lazy: async () => ({
+              Component: (await import('@/features/budgets/pages/BudgetDetailPage'))
+                .BudgetDetailPage,
+            }),
+          },
+          {
             path: 'recurring',
             lazy: async () => ({
               Component: (await import('@/features/recurring/pages/RecurringPage')).RecurringPage,

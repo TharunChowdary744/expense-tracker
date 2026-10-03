@@ -19,3 +19,13 @@ vi.stubGlobal('matchMedia', (query: string): MediaQueryList => ({
   removeListener: () => {},
   dispatchEvent: () => false,
 }))
+
+// jsdom has no ResizeObserver; Radix (e.g. Switch) measures elements with it.
+vi.stubGlobal(
+  'ResizeObserver',
+  class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+)

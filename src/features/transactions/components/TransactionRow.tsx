@@ -23,7 +23,8 @@ interface Props {
   baseCurrency: string
   locale?: string
   selected: boolean
-  onToggleSelected: (id: string) => void
+  /** Omit to show the row without a selection checkbox. */
+  onToggleSelected?: (id: string) => void
   onEdit: (tx: Transaction) => void
   onDuplicate: (tx: Transaction) => void
   onDelete: (tx: Transaction) => void
@@ -59,13 +60,15 @@ export const TransactionRow = memo(function TransactionRow({
         selected && 'border-primary bg-accent/50',
       )}
     >
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={() => onToggleSelected(tx.id)}
-        aria-label={`Select ${label}`}
-        className="size-4 shrink-0 accent-primary"
-      />
+      {onToggleSelected && (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onToggleSelected(tx.id)}
+          aria-label={`Select ${label}`}
+          className="size-4 shrink-0 accent-primary"
+        />
+      )}
       <button
         type="button"
         onClick={() => onEdit(tx)}
