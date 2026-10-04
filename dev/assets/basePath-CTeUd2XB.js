@@ -1,0 +1,1 @@
+function e(e){return e.replace(/\/+$/,``)}function t(t=`/expense-tracker/dev/`){return e(t)||`/`}function n(t,n=`/expense-tracker/dev/`){return`${e(n)}${t}`}export{t as n,n as t};

@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-BNakU3Ej.js";var t=e();function n({kind:e,children:n}){return(0,t.jsx)(`p`,{role:e===`error`?`alert`:`status`,className:e===`error`?`rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive`:`rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success`,children:n})}export{n as t};

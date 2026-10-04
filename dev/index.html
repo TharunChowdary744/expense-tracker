@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f766e" />
+    <link rel="icon" type="image/svg+xml" href="/expense-tracker/dev/favicon.svg" />
+    <title>Ledgerly</title>
+    <script>
+      // GitHub Pages: 404.html sends unknown paths here as ?__route=<path>; put the path back.
+      ;(function () {
+        var route = new URLSearchParams(location.search).get('__route')
+        if (route) history.replaceState(null, '', location.pathname.replace(/\/?$/, '/') + route)
+      })()
+    </script>
+    <script>
+      // Apply the stored theme before first paint to avoid a flash.
+      try {
+        var t = localStorage.getItem('ledgerly-theme')
+        var dark =
+          t === 'dark' ||
+          ((t === null || t === 'system') && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.toggle('dark', dark)
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/expense-tracker/dev/assets/index-DxEoUmxV.js"></script>
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/rolldown-runtime-hePW80VL.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/jsx-runtime-BNakU3Ej.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/createLucideIcon-Cn6LRB4K.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/button-c4jAeiHB.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/dist-CIOIaA18.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/components-DRCEW0fr.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/hooks-tVkz_Us2.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/basePath-CTeUd2XB.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/defaults-CpT8Kokc.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/icons-BDY7sjeS.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/dist-rFKToMWq.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/dialog-COT0dmjc.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/dist-Bka588aP.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/money-CeAB4GMZ.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/schemas-DiN1veem.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/utils-3hxdPF3-.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/firestore-DiGh4A6d.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/schemas-mTklSlf1.js">
+    <link rel="modulepreload" crossorigin href="/expense-tracker/dev/assets/schemas-UhwLmnQF.js">
+    <link rel="stylesheet" crossorigin href="/expense-tracker/dev/assets/index-BPkJCYaY.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
