@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
 import { useGetAccountsQuery } from '@/features/accounts/api'
 import { useGetCategoriesQuery } from '@/features/categories/api'
 import { AttachmentsField } from '@/features/receipts/components/AttachmentsField'
+import { receiptsEnabled } from '@/features/receipts/flag'
 import { commitDrafts } from '@/features/receipts/queue'
 import { selectUploadsFor } from '@/features/receipts/slice'
 import type { ReceiptParent } from '@/features/receipts/types'
@@ -171,11 +172,13 @@ function ExpenseSheetBody({
         baseCurrency={baseCurrency}
         locale={locale}
         attachments={
-          <AttachmentsField
-            parent={parent}
-            mode={expense ? 'saved' : 'draft'}
-            onBusyChange={setPreparingFiles}
-          />
+          receiptsEnabled ? (
+            <AttachmentsField
+              parent={parent}
+              mode={expense ? 'saved' : 'draft'}
+              onBusyChange={setPreparingFiles}
+            />
+          ) : undefined
         }
         onSubmit={onSubmit}
         onDelete={expense ? () => setConfirmingDelete(true) : undefined}
@@ -185,7 +188,7 @@ function ExpenseSheetBody({
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
         title={`Delete ${expense?.description ?? 'this expense'}?`}
-        description="Balances update for everyone in the group, and its receipts are deleted. A personal expense you linked to it stays in your transactions."
+        description={`Balances update for everyone in the group${receiptsEnabled ? ', and its receipts are deleted' : ''}. A personal expense you linked to it stays in your transactions.`}
         confirmLabel="Delete expense"
         busyLabel="Deleting…"
         destructive
