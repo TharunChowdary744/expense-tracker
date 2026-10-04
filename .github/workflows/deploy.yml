@@ -21,7 +21,10 @@ jobs:
   deploy:
     name: Deploy ${{ github.ref_name }}
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'develop' && 'dev' || github.ref_name }}
+    environment:
+      name: ${{ github.ref_name == 'develop' && 'dev' || github.ref_name }}
+      # Shown on the run page and under Deployments / Environments in GitHub.
+      url: ${{ steps.url.outputs.url }}
     if: contains(fromJSON('["develop","test","prod"]'), github.ref_name)
     steps:
       - uses: actions/checkout@v4
@@ -79,6 +82,24 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
           DEPLOY_ONLY: ${{ vars.FIREBASE_DEPLOY_ONLY || 'hosting,firestore' }}
         run: npx --yes firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only "$DEPLOY_ONLY" --non-interactive
+
+      # The app's URL. GitHub hides any text containing a secret, so a URL built from the
+      # VITE_FIREBASE_PROJECT_ID secret shows as ***. Set the Environment variable HOSTING_URL
+      # (e.g. https://ledgerly-dev.web.app) to show it in full.
+      - name: Publish app URL
+        id: url
+        if: steps.app.outputs.firebase == 'true'
+        env:
+          HOSTING_URL: ${{ vars.HOSTING_URL }}
+          FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+        run: |
+          url="${HOSTING_URL:-https://${FIREBASE_PROJECT_ID}.web.app}"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deployed ${GITHUB_REF_NAME}"
+            echo
+            echo "App URL: $url"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Nothing to deploy yet
         if: steps.app.outputs.firebase != 'true'
