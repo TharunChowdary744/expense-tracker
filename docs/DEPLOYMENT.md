@@ -11,7 +11,7 @@
 Flow: `phase-<n>-<slug>` → PR → `develop` → PR → `test` → PR → `prod`.
 
 - `.github/workflows/ci.yml` runs on every PR into these branches. It enforces the order above (only `develop` may open into `test`, only `test` into `prod`) and runs lint, typecheck, test and build.
-- `.github/workflows/deploy.yml` runs on every push to these branches (a merged PR is a push). It picks the matching GitHub Environment, builds with that environment's secrets, and runs `firebase deploy` (Hosting, Firestore rules and indexes, Storage rules).
+- `.github/workflows/deploy.yml` runs on every push to these branches (a merged PR is a push). It picks the matching GitHub Environment, builds with that environment's secrets, and runs `firebase deploy --only hosting,firestore` (Hosting, Firestore rules and indexes). Storage is skipped while receipts are off; see [Receipts and Storage](#receipts-and-storage).
 - Until the app has a `package.json` and `firebase.json`, both workflows pass and skip those steps.
 
 ## Secrets
@@ -48,3 +48,18 @@ Local development uses `.env.local` (git-ignored), copied from `.env.example`.
 ## Rotating a secret
 
 Replace the value in the Environment (Settings → Environments → env → secret → Update). For the service account, create a new key, update `FIREBASE_SERVICE_ACCOUNT`, confirm a deploy, then delete the old key in Google Cloud.
+
+## Receipts and Storage
+
+Receipts (file attachments in Firebase Storage) are switched off for now:
+
+- The app build hides all receipt UI and keeps the upload queue idle unless `VITE_RECEIPTS_ENABLED` is `"true"`. Saved attachment data in Firestore is left as is.
+- `deploy.yml` deploys only `hosting,firestore`, so it never deploys `storage.rules` or checks the Storage API. `storage.rules` and its rules tests stay in the repo and keep running in CI.
+
+To turn receipts back on for an environment, in GitHub → Settings → Environments → env → Variables (or as repository variables for all of them):
+
+1. Set `VITE_RECEIPTS_ENABLED` to `true`.
+2. Set `FIREBASE_DEPLOY_ONLY` to `hosting,firestore,storage`.
+3. Make sure Storage is enabled in that Firebase project and the deploy service account has `Service Usage Consumer` (see above), then redeploy.
+
+Locally, set `VITE_RECEIPTS_ENABLED=true` in `.env.local`.

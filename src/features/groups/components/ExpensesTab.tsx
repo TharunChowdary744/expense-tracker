@@ -2,6 +2,7 @@ import { Plus, Receipt } from 'lucide-react'
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/ListStates'
 import { PendingBadge } from '@/components/PendingBadge'
 import { Button } from '@/components/ui/button'
+import { receiptsEnabled } from '@/features/receipts/flag'
 import { AttachmentCount } from '@/features/transactions/components/TransactionRow'
 import { formatCalendarDate, calendarDate } from '@/utils/dates'
 import { cn } from '@/utils/cn'
@@ -95,7 +96,7 @@ export function ExpensesTab({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
                     <span className="truncate font-medium">{expense.description}</span>
-                    {expense.attachments.length > 0 && (
+                    {receiptsEnabled && expense.attachments.length > 0 && (
                       <AttachmentCount count={expense.attachments.length} />
                     )}
                     {expense.pending && <PendingBadge />}

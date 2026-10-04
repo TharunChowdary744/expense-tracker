@@ -60,6 +60,8 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
           VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
+          # Receipts stay hidden unless this repo or Environment variable is "true".
+          VITE_RECEIPTS_ENABLED: ${{ vars.VITE_RECEIPTS_ENABLED }}
         run: npm run build
 
       - name: Authenticate to Google Cloud
@@ -68,11 +70,15 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
+      # Firebase Storage is skipped (no storage rules deploy, no Storage API check) while
+      # receipts are off. To deploy Storage rules again, set the repo or Environment variable
+      # FIREBASE_DEPLOY_ONLY to "hosting,firestore,storage".
       - name: Deploy Hosting, rules and indexes
         if: steps.app.outputs.firebase == 'true'
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-        run: npx --yes firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --non-interactive
+          DEPLOY_ONLY: ${{ vars.FIREBASE_DEPLOY_ONLY || 'hosting,firestore' }}
+        run: npx --yes firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only "$DEPLOY_ONLY" --non-interactive
 
       - name: Nothing to deploy yet
         if: steps.app.outputs.firebase != 'true'

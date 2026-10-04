@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Account } from '@/features/accounts/types'
 import type { Category } from '@/features/categories/types'
+import { receiptsEnabled } from '@/features/receipts/flag'
 import { cn } from '@/utils/cn'
 import { formatMoney } from '@/utils/money'
 import type { Transaction } from '../types'
@@ -88,7 +89,9 @@ export const TransactionRow = memo(function TransactionRow({
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <span className="truncate font-medium">{title}</span>
-            {tx.attachments.length > 0 && <AttachmentCount count={tx.attachments.length} />}
+            {receiptsEnabled && tx.attachments.length > 0 && (
+              <AttachmentCount count={tx.attachments.length} />
+            )}
             {tx.pending && <PendingBadge />}
           </span>
           <span className="block truncate text-xs text-muted-foreground">

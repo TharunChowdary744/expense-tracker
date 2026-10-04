@@ -6,6 +6,7 @@ import { useGetAccountsQuery } from '@/features/accounts/api'
 import { useUid } from '@/features/auth/hooks'
 import { useGetCategoriesQuery } from '@/features/categories/api'
 import { AttachmentsField } from '@/features/receipts/components/AttachmentsField'
+import { receiptsEnabled } from '@/features/receipts/flag'
 import { commitDrafts } from '@/features/receipts/queue'
 import { selectUploadsFor } from '@/features/receipts/slice'
 import type { ReceiptParent } from '@/features/receipts/types'
@@ -207,11 +208,13 @@ function SheetBody({
           : undefined
       }
       attachments={
-        <AttachmentsField
-          parent={parent}
-          mode={editingTx ? 'saved' : 'draft'}
-          onBusyChange={setPreparingFiles}
-        />
+        receiptsEnabled ? (
+          <AttachmentsField
+            parent={parent}
+            mode={editingTx ? 'saved' : 'draft'}
+            onBusyChange={setPreparingFiles}
+          />
+        ) : undefined
       }
       onSubmit={onSubmit}
       onCancel={onDone}
