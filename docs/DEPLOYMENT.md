@@ -59,6 +59,14 @@ Replace the value in the Environment (Settings → Environments → env → secr
 
 `deploy.yml` sets each run's environment URL to `https://<project-id>.web.app`, built from the `VITE_FIREBASE_PROJECT_ID` secret. GitHub masks any text that contains a secret, so that URL shows as `https://***.web.app`. To show it in full, add an Environment variable (Settings → Environments → env → Variables, not Secrets) named `HOSTING_URL`, for example `https://ledgerly-dev.web.app` for `dev`. It also lets you point at a custom domain.
 
+| Merged PR into | Deploys Environment | `HOSTING_URL` (with the suggested project IDs) |
+| -------------- | ------------------- | ---------------------------------------------- |
+| `develop`      | `dev`               | `https://ledgerly-dev.web.app`                 |
+| `test`         | `test`              | `https://ledgerly-test.web.app`                |
+| `prod`         | `prod`              | `https://ledgerly-prod.web.app`                |
+
+Each Environment's latest URL is listed on the repo's **Environments** page (Code tab → Deployments).
+
 ## Receipts and Storage
 
 Receipts (file attachments in Firebase Storage) are switched off for now:
