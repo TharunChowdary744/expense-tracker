@@ -18,12 +18,21 @@ const MESSAGES: Record<string, string> = {
   'auth/operation-not-allowed': 'This sign-in method is not enabled yet.',
   'auth/unauthorized-domain': 'This domain is not authorised for sign-in yet.',
   'auth/invalid-api-key': 'The app is not configured with Firebase keys.',
+  'auth/configuration-not-found':
+    'Sign-in is not set up for this app yet (Firebase Authentication is not enabled).',
+  'auth/admin-restricted-operation': 'New sign-ups are turned off for this app.',
+  'auth/internal-error': 'Sign-in failed because of a problem on our side. Try again shortly.',
+  'permission-denied': 'You do not have permission to do that.',
+  unavailable: 'Cannot reach the server. Check your connection and try again.',
   'storage/unauthorized': 'You are not allowed to upload this file.',
   'storage/canceled': 'The upload was cancelled.',
   'storage/retry-limit-exceeded': 'The upload took too long. Check your connection and retry.',
 }
 
 const FALLBACK = 'Something went wrong. Please try again.'
+
+/** Firebase reports a rejected or restricted API key with codes that start like this. */
+const API_KEY_CODE_PREFIXES = ['auth/api-key-not-valid', 'auth/requests-from-referer']
 
 function getCode(error: unknown): string | undefined {
   if (typeof error === 'object' && error !== null && 'code' in error) {
@@ -37,12 +46,20 @@ export function getAuthErrorCode(error: unknown): string | undefined {
   return getCode(error)
 }
 
-/** Maps Firebase Auth/Storage errors to messages that are safe and useful to show. */
+/**
+ * Maps Firebase Auth/Firestore/Storage errors to messages that are safe and useful to show.
+ * Unknown Firebase errors keep their code in the message so the real cause is visible;
+ * codes never reveal anything about other users' accounts.
+ */
 export function getAuthErrorMessage(error: unknown): string {
   const code = getCode(error)
   if (code && MESSAGES[code]) return MESSAGES[code]
+  if (code && API_KEY_CODE_PREFIXES.some((prefix) => code.startsWith(prefix))) {
+    return "This site is not allowed to use the app's Firebase API key."
+  }
   if (error instanceof Error && error.name === 'AuthFormError') return error.message
-  return FALLBACK
+  if (error !== undefined) console.error('Unexpected error', error)
+  return code ? `${FALLBACK} (${code})` : FALLBACK
 }
 
 /** Thrown for validation problems we detect ourselves (message is already user-facing). */

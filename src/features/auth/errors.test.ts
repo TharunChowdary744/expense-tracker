@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { AuthFormError, getAuthErrorMessage } from './errors'
 
 describe('getAuthErrorMessage', () => {
@@ -19,9 +19,20 @@ describe('getAuthErrorMessage', () => {
     )
   })
 
+  it('explains setup problems in the Firebase project', () => {
+    expect(getAuthErrorMessage({ code: 'auth/configuration-not-found' })).toMatch(/not enabled/)
+    expect(
+      getAuthErrorMessage({ code: 'auth/api-key-not-valid.-please-pass-a-valid-api-key.' }),
+    ).toMatch(/API key/)
+    expect(getAuthErrorMessage({ code: 'permission-denied' })).toMatch(/permission/)
+  })
+
   it('falls back for unknown or non-Firebase errors', () => {
-    expect(getAuthErrorMessage({ code: 'auth/nope' })).toMatch(/Something went wrong/)
-    expect(getAuthErrorMessage(new Error('boom'))).toMatch(/Something went wrong/)
-    expect(getAuthErrorMessage(undefined)).toMatch(/Something went wrong/)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expect(getAuthErrorMessage({ code: 'auth/nope' })).toBe(
+      'Something went wrong. Please try again. (auth/nope)',
+    )
+    expect(getAuthErrorMessage(new Error('boom'))).toBe('Something went wrong. Please try again.')
+    expect(getAuthErrorMessage(undefined)).toBe('Something went wrong. Please try again.')
   })
 })
