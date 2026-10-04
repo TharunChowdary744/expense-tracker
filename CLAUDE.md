@@ -24,7 +24,7 @@ Ledgerly is a production-quality personal and group expense tracker, delivered a
 **Hard constraints**
 
 - **No AI features of any kind.**
-- **No custom backend.** The client talks directly to Firebase: Auth, Firestore, Storage, Cloud Messaging, Hosting.
+- **No custom backend.** The client talks directly to Firebase: Auth, Firestore, Storage, Cloud Messaging. The app is hosted on GitHub Pages.
 - Security is enforced only by Firestore and Storage security rules, so **rules are first-class code**: versioned, reviewed, and tested.
 
 ## 2. Tech stack (fixed)

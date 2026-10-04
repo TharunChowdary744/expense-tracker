@@ -11,9 +11,8 @@
 Flow: `phase-<n>-<slug>` → PR → `develop` → PR → `test` → PR → `prod`.
 
 - `.github/workflows/ci.yml` runs on every PR into these branches. It enforces the order above (only `develop` may open into `test`, only `test` into `prod`) and runs lint, typecheck, test and build.
-- `.github/workflows/deploy.yml` runs on every push to these branches (a merged PR is a push). It picks the matching GitHub Environment, builds with that environment's secrets, and runs `firebase deploy --only hosting,firestore` (Hosting, Firestore rules and indexes). Storage is skipped while receipts are off; see [Receipts and Storage](#receipts-and-storage).
+- `.github/workflows/deploy.yml` runs on every push to these branches (a merged PR is a push). It picks the matching GitHub Environment, builds with that environment's secrets and publishes the app to **GitHub Pages**. It deploys nothing to Firebase unless you ask it to; see [Firebase rules and indexes](#firebase-rules-and-indexes).
 - After a successful deploy the app URL is shown on the workflow run (next to the job and in its summary) and under the repo's **Deployments** / **Environments**. See [App URL](#app-url).
-- Until the app has a `package.json` and `firebase.json`, both workflows pass and skip those steps.
 
 ## Secrets
 
@@ -40,7 +39,7 @@ Local development uses `.env.local` (git-ignored), copied from `.env.example`.
 1. **Create three Firebase projects** (`ledgerly-dev`, `ledgerly-test`, `ledgerly-prod`). In each: add a Web app, enable Authentication, Firestore, Storage (Firebase console → Storage → Get started, which creates the default bucket the deploy needs) and Cloud Messaging, and generate a Web Push key pair.
 2. **Create a deploy service account** in each project: Google Cloud console → IAM → Service accounts → Create. Grant these roles, then create a JSON key and download it:
    - Recommended: `Firebase Admin` and `Service Usage Consumer`.
-   - Narrower alternative: `Firebase Hosting Admin`, `Firebase Rules Admin`, `Cloud Datastore Index Admin`, `Cloud Storage for Firebase Admin`, `Service Account User`, `Service Usage Consumer`.
+   - Narrower alternative: `Firebase Rules Admin`, `Cloud Datastore Index Admin`, `Cloud Storage for Firebase Admin`, `Service Account User`, `Service Usage Consumer`.
    - Common `firebase deploy` errors this fixes:
      - `403 Permission denied to get service [firebasestorage.googleapis.com]`: add `Service Usage Consumer`. The CLI checks that each product's API is enabled before deploying it.
      - `403 Permission 'firebasestorage.defaultBucket.get' denied ... (or it may not exist)`: first make sure Storage is set up (Firebase console → Storage → Get started; new buckets need the Blaze plan). If it is, the account is missing `Firebase Admin` or `Cloud Storage for Firebase Admin`.
@@ -57,27 +56,46 @@ Replace the value in the Environment (Settings → Environments → env → secr
 
 ## App URL
 
-`deploy.yml` sets each run's environment URL to `https://<project-id>.web.app`, built from the `VITE_FIREBASE_PROJECT_ID` secret. GitHub masks any text that contains a secret, so that URL shows as `https://***.web.app`. To show it in full, add an Environment variable (Settings → Environments → env → Variables, not Secrets) named `HOSTING_URL`, for example `https://ledgerly-dev.web.app` for `dev`. It also lets you point at a custom domain.
+The app is hosted on GitHub Pages from the `gh-pages` branch, which `deploy.yml` writes to. Each environment has its own folder, so the three never overwrite each other:
 
-| Merged PR into | Deploys Environment | `HOSTING_URL` (with the suggested project IDs) |
-| -------------- | ------------------- | ---------------------------------------------- |
-| `develop`      | `dev`               | `https://ledgerly-dev.web.app`                 |
-| `test`         | `test`              | `https://ledgerly-test.web.app`                |
-| `prod`         | `prod`              | `https://ledgerly-prod.web.app`                |
+| Merged PR into | Deploys Environment | App URL                                                     |
+| -------------- | ------------------- | ----------------------------------------------------------- |
+| `develop`      | `dev`               | `https://tharunchowdary744.github.io/expense-tracker/dev/`  |
+| `test`         | `test`              | `https://tharunchowdary744.github.io/expense-tracker/test/` |
+| `prod`         | `prod`              | `https://tharunchowdary744.github.io/expense-tracker/`      |
 
 Each Environment's latest URL is listed on the repo's **Environments** page (Code tab → Deployments).
+
+One-time setup:
+
+1. After the first deploy has created the `gh-pages` branch: repo → Settings → Pages → Build and deployment → Source **Deploy from a branch**, branch `gh-pages`, folder `/ (root)`.
+2. In each Firebase project: Authentication → Settings → Authorized domains → add `tharunchowdary744.github.io`, or sign-in fails with `auth/unauthorized-domain`.
+
+How it works: the build sets Vite's `base` (and the router's basename) from `BASE_PATH`, e.g. `/expense-tracker/dev/`. Pages has no SPA rewrites, so `public/404.html` sends unknown paths back to the right environment's `index.html`, which restores the path before the app starts.
+
+Known limitations:
+
+- All three environments share one origin (`tharunchowdary744.github.io`), so they share browser storage such as the theme setting. Firebase keeps each project's sign-in and offline data separate.
+- Google sign-in by redirect (used when popups are blocked) can fail on browsers that block third-party storage, because the app is no longer on the Firebase auth domain. The popup flow works.
+
+## Firebase rules and indexes
+
+`deploy.yml` deploys nothing to Firebase by default. Firestore rules and indexes in the repo therefore do **not** reach a project on merge. Either:
+
+- publish them by hand: Firebase console → Firestore → Rules (paste `firestore.rules`) and Indexes (from `firestore.indexes.json`), or
+- let CI do it: set the repo or Environment variable `FIREBASE_DEPLOY_ONLY` to `firestore` (add `,storage` when receipts are on). The service account then needs the roles in [One-time setup](#one-time-setup-owner), including `Firebase Rules Admin` (part of `Firebase Admin`).
 
 ## Receipts and Storage
 
 Receipts (file attachments in Firebase Storage) are switched off for now:
 
 - The app build hides all receipt UI and keeps the upload queue idle unless `VITE_RECEIPTS_ENABLED` is `"true"`. Saved attachment data in Firestore is left as is.
-- `deploy.yml` deploys only `hosting,firestore`, so it never deploys `storage.rules` or checks the Storage API. `storage.rules` and its rules tests stay in the repo and keep running in CI.
+- `deploy.yml` does not deploy `storage.rules` or check the Storage API. `storage.rules` and its rules tests stay in the repo and keep running in CI.
 
 To turn receipts back on for an environment, in GitHub → Settings → Environments → env → Variables (or as repository variables for all of them):
 
 1. Set `VITE_RECEIPTS_ENABLED` to `true`.
-2. Set `FIREBASE_DEPLOY_ONLY` to `hosting,firestore,storage`.
+2. Publish `storage.rules` (Firebase console → Storage → Rules), or set `FIREBASE_DEPLOY_ONLY` to `firestore,storage`.
 3. Make sure Storage is enabled in that Firebase project and the deploy service account has `Service Usage Consumer` (see above), then redeploy.
 
 Locally, set `VITE_RECEIPTS_ENABLED=true` in `.env.local`.

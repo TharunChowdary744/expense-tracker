@@ -25,6 +25,6 @@ Concurrent calls in one tab share a promise. It runs in the background so the ap
 ## Firebase console setup (per project: dev, test, prod)
 
 1. **Authentication → Sign-in method**: enable **Email/Password** (leave "Email link" off) and **Google** (set the public-facing name and support email).
-2. **Authentication → Settings → Authorized domains**: keep `localhost`, the project's `*.firebaseapp.com` and `*.web.app` domains, and add every custom domain you serve the app from.
+2. **Authentication → Settings → Authorized domains**: keep `localhost`, the project's `*.firebaseapp.com` domain, add `tharunchowdary744.github.io` (GitHub Pages hosting) and every custom domain you serve the app from.
 3. **Authentication → Templates**: optionally customise the verification and password-reset emails and set the sender name.
-4. **Firestore** and **Storage**: create the database and bucket if they do not exist. Rules deploy with the normal pipeline (`firebase.json` already points at both rules files).
+4. **Firestore** and **Storage**: create the database and bucket if they do not exist. Rules are not deployed on merge; see [Firebase rules and indexes](DEPLOYMENT.md#firebase-rules-and-indexes).
