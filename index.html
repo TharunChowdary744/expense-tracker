@@ -7,6 +7,13 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Ledgerly</title>
     <script>
+      // GitHub Pages: 404.html sends unknown paths here as ?__route=<path>; put the path back.
+      ;(function () {
+        var route = new URLSearchParams(location.search).get('__route')
+        if (route) history.replaceState(null, '', location.pathname.replace(/\/?$/, '/') + route)
+      })()
+    </script>
+    <script>
       // Apply the stored theme before first paint to avoid a flash.
       try {
         var t = localStorage.getItem('ledgerly-theme')

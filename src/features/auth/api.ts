@@ -17,6 +17,7 @@ import {
 } from 'firebase/auth'
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore'
+import { appPath } from '@/app/basePath'
 import { getFirebase } from '@/lib/firebase'
 import { api } from '@/services/api'
 import { toastAdded } from '@/features/ui/slice'
@@ -98,7 +99,7 @@ export const authApi = api.injectEndpoints({
           typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(SIGN_OUT_CHANNEL)
         if (channel) {
           channel.onmessage = (event: MessageEvent<unknown>) => {
-            if (event.data === 'signed-out') window.location.assign('/sign-in')
+            if (event.data === 'signed-out') window.location.assign(appPath('/sign-in'))
           }
         }
 

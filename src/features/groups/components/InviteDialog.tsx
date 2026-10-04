@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, Copy, Link2, Mail, Share2 } from 'lucide-react'
 import { useId, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { appPath } from '@/app/basePath'
 import { FormMessage } from '@/components/form/FormMessage'
 import { TextField } from '@/components/form/TextField'
 import { Button } from '@/components/ui/button'
@@ -68,7 +69,7 @@ function InviteBody({ group }: { group: Group }) {
       setError(String(result.error))
       return
     }
-    setCreated({ url: inviteUrl(window.location.origin, token), email })
+    setCreated({ url: inviteUrl(`${window.location.origin}${appPath('')}`, token), email })
   }
 
   async function copy(url: string) {

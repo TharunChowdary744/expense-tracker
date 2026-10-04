@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ledgerly</title>
+    <script>
+      // GitHub Pages serves this file for any path it has no file for. The app is a single-page
+      // app, so send the browser to the right environment's index.html with the path in the query;
+      // index.html restores it. Environments: /<repo>/ (prod), /<repo>/test/, /<repo>/dev/.
+      ;(function () {
+        var parts = location.pathname.split('/')
+        var depth = parts[2] === 'dev' || parts[2] === 'test' ? 3 : 2
+        var base = parts.slice(0, depth).join('/') + '/'
+        var route = parts.slice(depth).join('/') + location.search + location.hash
+        location.replace(base + '?__route=' + encodeURIComponent(route))
+      })()
+    </script>
+  </head>
+  <body></body>
+</html>

@@ -15,7 +15,7 @@ Browser / installed PWA
      │
   Firebase modular SDK (src/lib/firebase.ts)
      │
-Firebase: Auth · Firestore · Storage · Cloud Messaging · Hosting
+Firebase: Auth · Firestore · Storage · Cloud Messaging (app hosted on GitHub Pages)
      └─ Firestore & Storage security rules = the only backend authority
 ```
 

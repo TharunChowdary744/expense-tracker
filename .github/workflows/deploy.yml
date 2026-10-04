@@ -2,8 +2,10 @@ name: Deploy
 
 # A merged PR lands as a push on the target branch, which deploys that environment:
 #   develop -> dev    test -> test    prod -> prod
-# Each GitHub Environment (dev, test, prod) holds its own Firebase secrets.
-# See docs/DEPLOYMENT.md.
+# The app is hosted on GitHub Pages (gh-pages branch), one folder per environment:
+#   prod -> /<repo>/    test -> /<repo>/test/    dev -> /<repo>/dev/
+# Each GitHub Environment (dev, test, prod) holds its own Firebase web config secrets.
+# Nothing is deployed to Firebase unless FIREBASE_DEPLOY_ONLY is set. See docs/DEPLOYMENT.md.
 
 on:
   push:
@@ -21,40 +23,43 @@ jobs:
   deploy:
     name: Deploy ${{ github.ref_name }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the build to the gh-pages branch
     environment:
       name: ${{ github.ref_name == 'develop' && 'dev' || github.ref_name }}
       # Shown on the run page and under Deployments / Environments in GitHub.
-      url: ${{ steps.url.outputs.url }}
+      url: ${{ steps.publish.outputs.url }}
     if: contains(fromJSON('["develop","test","prod"]'), github.ref_name)
+    env:
+      APP_ENV: ${{ github.ref_name == 'develop' && 'dev' || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect app and Firebase config
-        id: app
+      - name: Work out the GitHub Pages folder and URL
+        id: site
         run: |
-          [ -f package.json ] && echo "node=true" >> "$GITHUB_OUTPUT" || echo "node=false" >> "$GITHUB_OUTPUT"
-          [ -f firebase.json ] && echo "firebase=true" >> "$GITHUB_OUTPUT" || echo "firebase=false" >> "$GITHUB_OUTPUT"
+          repo="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          if [ "$APP_ENV" = prod ]; then folder=""; else folder="$APP_ENV/"; fi
+          echo "folder=$folder" >> "$GITHUB_OUTPUT"
+          echo "base=/$repo/$folder" >> "$GITHUB_OUTPUT"
+          echo "url=https://$owner.github.io/$repo/$folder" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
-        if: steps.app.outputs.node == 'true'
         with:
           node-version: 22
           cache: npm
 
-      - if: steps.app.outputs.node == 'true'
-        run: npm ci
-      - if: steps.app.outputs.node == 'true'
-        run: npm run lint
-      - if: steps.app.outputs.node == 'true'
-        run: npm run typecheck
-      - if: steps.app.outputs.node == 'true'
-        run: npm run test
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
 
       - name: Build with environment config
-        if: steps.app.outputs.node == 'true'
         env:
+          BASE_PATH: ${{ steps.site.outputs.base }}
           VITE_USE_EMULATORS: 'false'
-          VITE_APP_ENV: ${{ github.ref_name == 'develop' && 'dev' || github.ref_name }}
+          VITE_APP_ENV: ${{ env.APP_ENV }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -67,40 +72,67 @@ jobs:
           VITE_RECEIPTS_ENABLED: ${{ vars.VITE_RECEIPTS_ENABLED }}
         run: npm run build
 
+      # Copies the build into this environment's folder on the gh-pages branch, leaving the
+      # other environments' folders alone. Retries if another environment pushed first.
+      - name: Publish to GitHub Pages
+        id: publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FOLDER: ${{ steps.site.outputs.folder }}
+          URL: ${{ steps.site.outputs.url }}
+        run: |
+          set -euo pipefail
+          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          site="$RUNNER_TEMP/site"
+          for attempt in 1 2 3 4; do
+            rm -rf "$site"
+            if ! git clone --quiet --depth 1 --branch gh-pages "$remote" "$site" 2>/dev/null; then
+              git init --quiet -b gh-pages "$site"
+              git -C "$site" remote add origin "$remote"
+            fi
+            if [ -z "$FOLDER" ]; then
+              # prod lives at the root: replace everything except the other environments.
+              find "$site" -mindepth 1 -maxdepth 1 ! -name .git ! -name dev ! -name test -exec rm -rf {} +
+            else
+              rm -rf "${site:?}/$FOLDER"
+              mkdir -p "$site/$FOLDER"
+            fi
+            cp -R dist/. "$site/$FOLDER"
+            # Pages only uses the root 404.html; it routes unknown paths to the right environment.
+            cp dist/404.html "$site/404.html"
+            touch "$site/.nojekyll"
+            git -C "$site" add -A
+            if git -C "$site" diff --cached --quiet; then
+              echo "No changes to publish."
+              break
+            fi
+            git -C "$site" -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit --quiet -m "deploy ${APP_ENV} from ${GITHUB_SHA}"
+            if git -C "$site" push --quiet origin gh-pages; then break; fi
+            [ "$attempt" = 4 ] && { echo "Could not push to gh-pages"; exit 1; }
+            sleep $((attempt * 5))
+          done
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deployed ${APP_ENV}"
+            echo
+            echo "App URL: $URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Firebase deploys are off: the app is hosted on GitHub Pages. To push Firestore rules and
+      # indexes from CI again, set the repo or Environment variable FIREBASE_DEPLOY_ONLY, e.g.
+      # "firestore" (add ",storage" when receipts are on). The service account then needs the
+      # roles listed in docs/DEPLOYMENT.md.
       - name: Authenticate to Google Cloud
-        if: steps.app.outputs.firebase == 'true'
+        if: vars.FIREBASE_DEPLOY_ONLY != ''
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      # Firebase Storage is skipped (no storage rules deploy, no Storage API check) while
-      # receipts are off. To deploy Storage rules again, set the repo or Environment variable
-      # FIREBASE_DEPLOY_ONLY to "hosting,firestore,storage".
-      - name: Deploy Hosting, rules and indexes
-        if: steps.app.outputs.firebase == 'true'
+      - name: Deploy Firebase rules and indexes
+        if: vars.FIREBASE_DEPLOY_ONLY != ''
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          DEPLOY_ONLY: ${{ vars.FIREBASE_DEPLOY_ONLY || 'hosting,firestore' }}
+          DEPLOY_ONLY: ${{ vars.FIREBASE_DEPLOY_ONLY }}
         run: npx --yes firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only "$DEPLOY_ONLY" --non-interactive
-
-      # The app's URL. GitHub hides any text containing a secret, so a URL built from the
-      # VITE_FIREBASE_PROJECT_ID secret shows as ***. Set the Environment variable HOSTING_URL
-      # (e.g. https://ledgerly-dev.web.app) to show it in full.
-      - name: Publish app URL
-        id: url
-        if: steps.app.outputs.firebase == 'true'
-        env:
-          HOSTING_URL: ${{ vars.HOSTING_URL }}
-          FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-        run: |
-          url="${HOSTING_URL:-https://${FIREBASE_PROJECT_ID}.web.app}"
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-          {
-            echo "### Deployed ${GITHUB_REF_NAME}"
-            echo
-            echo "App URL: $url"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Nothing to deploy yet
-        if: steps.app.outputs.firebase != 'true'
-        run: echo "No firebase.json yet; skipping deploy for ${{ github.ref_name }}."
