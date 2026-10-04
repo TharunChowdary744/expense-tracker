@@ -12,6 +12,7 @@ Flow: `phase-<n>-<slug>` → PR → `develop` → PR → `test` → PR → `prod
 
 - `.github/workflows/ci.yml` runs on every PR into these branches. It enforces the order above (only `develop` may open into `test`, only `test` into `prod`) and runs lint, typecheck, test and build.
 - `.github/workflows/deploy.yml` runs on every push to these branches (a merged PR is a push). It picks the matching GitHub Environment, builds with that environment's secrets, and runs `firebase deploy --only hosting,firestore` (Hosting, Firestore rules and indexes). Storage is skipped while receipts are off; see [Receipts and Storage](#receipts-and-storage).
+- After a successful deploy the app URL is shown on the workflow run (next to the job and in its summary) and under the repo's **Deployments** / **Environments**. See [App URL](#app-url).
 - Until the app has a `package.json` and `firebase.json`, both workflows pass and skip those steps.
 
 ## Secrets
@@ -53,6 +54,18 @@ Local development uses `.env.local` (git-ignored), copied from `.env.example`.
 ## Rotating a secret
 
 Replace the value in the Environment (Settings → Environments → env → secret → Update). For the service account, create a new key, update `FIREBASE_SERVICE_ACCOUNT`, confirm a deploy, then delete the old key in Google Cloud.
+
+## App URL
+
+`deploy.yml` sets each run's environment URL to `https://<project-id>.web.app`, built from the `VITE_FIREBASE_PROJECT_ID` secret. GitHub masks any text that contains a secret, so that URL shows as `https://***.web.app`. To show it in full, add an Environment variable (Settings → Environments → env → Variables, not Secrets) named `HOSTING_URL`, for example `https://ledgerly-dev.web.app` for `dev`. It also lets you point at a custom domain.
+
+| Merged PR into | Deploys Environment | `HOSTING_URL` (with the suggested project IDs) |
+| -------------- | ------------------- | ---------------------------------------------- |
+| `develop`      | `dev`               | `https://ledgerly-dev.web.app`                 |
+| `test`         | `test`              | `https://ledgerly-test.web.app`                |
+| `prod`         | `prod`              | `https://ledgerly-prod.web.app`                |
+
+Each Environment's latest URL is listed on the repo's **Environments** page (Code tab → Deployments).
 
 ## Receipts and Storage
 
