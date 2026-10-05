@@ -1,0 +1,1 @@
+import{n as e}from"./hooks-CFnhfyME.js";function t(){let t=e(e=>e.auth.user);if(!t)throw Error(`useActor() needs a signed-in user`);return{uid:t.uid,displayName:t.displayName??``,email:t.email??``,emailVerified:t.emailVerified}}export{t};
