@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Ledgerly",
+    "slug": "ledgerly",
+    "scheme": "ledgerly",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.ledgerly.app",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.ledgerly.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "@react-native-community/datetimepicker",
+      "expo-sharing",
+      "expo-web-browser",
+      "expo-localization",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#0b0f12"
+          }
+        }
+      ],
+      "expo-image",
+      [
+        "expo-notifications",
+        {
+          "color": "#266e69"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ledgerly uses your photos to attach receipts and set your profile photo.",
+          "cameraPermission": "Ledgerly uses the camera to photograph receipts."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false,
+      "tsconfigPaths": false
+    }
+  }
+}

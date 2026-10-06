@@ -1,0 +1,32 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "types": ["jest", "node"],
+    // `@/x`: this app's override of a shared module if there is one, else the web app's
+    // ../src/x. `@m/x`: this app's own code. Packages imported from ../src resolve from this
+    // app's node_modules (see metro.config.js), so one copy of each library's types is used.
+    "paths": {
+      "@/*": ["./src/overrides/*", "../src/*"],
+      "@m/*": ["./src/*"],
+      "react": ["./node_modules/@types/react"],
+      "react/*": ["./node_modules/@types/react/*"],
+      "react-redux": ["./node_modules/react-redux"],
+      "@reduxjs/toolkit": ["./node_modules/@reduxjs/toolkit"],
+      "@reduxjs/toolkit/*": ["./node_modules/@reduxjs/toolkit/*"],
+      "firebase/*": ["./node_modules/firebase/*"],
+      "zod": ["./node_modules/zod"],
+      "date-fns": ["./node_modules/date-fns"],
+      "react-hook-form": ["./node_modules/react-hook-form"],
+      "@hookform/resolvers/*": ["./node_modules/@hookform/resolvers/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": ["node_modules"]
+}

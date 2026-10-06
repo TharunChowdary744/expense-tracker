@@ -3,6 +3,7 @@ name: CI
 # Runs on every pull request into an environment branch.
 # - Enforces the promotion order: feature -> develop -> test -> prod.
 # - Runs lint, typecheck, unit tests and build (once the app exists).
+# - Runs the same checks for the mobile app in mobile/ (its own package and lockfile).
 
 on:
   pull_request:
@@ -80,6 +81,51 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: '0'
           VITE_FIREBASE_APP_ID: ci-placeholder
         run: npm run build
+
+  mobile:
+    name: Mobile app (lint, typecheck, test, bundle)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect mobile app
+        id: mobile
+        working-directory: .
+        run: |
+          if [ -f mobile/package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "No mobile app; skipping."; fi
+
+      - uses: actions/setup-node@v4
+        if: steps.mobile.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - if: steps.mobile.outputs.present == 'true'
+        run: npm ci
+      - if: steps.mobile.outputs.present == 'true'
+        run: npm run lint
+      - if: steps.mobile.outputs.present == 'true'
+        run: npm run format:check
+      - if: steps.mobile.outputs.present == 'true'
+        run: npm run typecheck
+      - if: steps.mobile.outputs.present == 'true'
+        run: npm test -- --ci
+      - if: steps.mobile.outputs.present == 'true'
+        name: Bundle check (emulator config, no real secrets)
+        env:
+          EXPO_OFFLINE: '1'
+          EXPO_PUBLIC_USE_EMULATORS: 'true'
+          EXPO_PUBLIC_FIREBASE_API_KEY: ci-placeholder
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: demo-ledgerly.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: demo-ledgerly
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: demo-ledgerly.appspot.com
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '0'
+          EXPO_PUBLIC_FIREBASE_APP_ID: ci-placeholder
+        run: npm run bundle:check
 
   rules:
     name: Security rules tests (emulator)
