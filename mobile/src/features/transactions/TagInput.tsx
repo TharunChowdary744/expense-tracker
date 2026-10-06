@@ -57,14 +57,25 @@ export function TagInput({
         onBlur={() => draft.trim() && add(draft)}
       />
       {value.length > 0 ? (
-        <View accessibilityLabel={`Selected ${label.toLowerCase()}`} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+        <View
+          accessibilityLabel={`Selected ${label.toLowerCase()}`}
+          style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}
+        >
           {value.map((tag) => (
-            <Chip key={tag} label={`#${tag}`} onRemove={() => onChange(value.filter((t) => t !== tag))} />
+            <Chip
+              key={tag}
+              label={`#${tag}`}
+              onRemove={() => onChange(value.filter((t) => t !== tag))}
+            />
           ))}
         </View>
       ) : null}
       {options.length > 0 && value.length < max ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={{ flexDirection: 'row', gap: 6 }}>
             {options.map((tag) => (
               <Chip key={tag} label={`+ #${tag}`} onPress={() => add(tag)} />

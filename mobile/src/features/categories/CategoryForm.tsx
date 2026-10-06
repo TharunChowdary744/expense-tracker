@@ -56,7 +56,13 @@ export function CategoryForm({
   return (
     <View style={{ gap: 16 }}>
       {error ? <FormMessage kind="error">{error}</FormMessage> : null}
-      <FormTextField control={control} name="name" label="Name" maxLength={CATEGORY_NAME_MAX} autoComplete="off" />
+      <FormTextField
+        control={control}
+        name="name"
+        label="Name"
+        maxLength={CATEGORY_NAME_MAX}
+        autoComplete="off"
+      />
       {hasChildren ? (
         <Text variant="small" tone="muted">
           This category has subcategories, so it stays top-level.
@@ -77,14 +83,25 @@ export function CategoryForm({
         control={control}
         name="color"
         render={({ field, fieldState }) => (
-          <ColorPicker label="Colour" value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+          <ColorPicker
+            label="Colour"
+            value={field.value}
+            onChange={field.onChange}
+            error={fieldState.error?.message}
+          />
         )}
       />
       <Controller
         control={control}
         name="icon"
         render={({ field, fieldState }) => (
-          <IconPicker label="Icon" value={field.value} onChange={field.onChange} color={color} error={fieldState.error?.message} />
+          <IconPicker
+            label="Icon"
+            value={field.value}
+            onChange={field.onChange}
+            color={color}
+            error={fieldState.error?.message}
+          />
         )}
       />
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>

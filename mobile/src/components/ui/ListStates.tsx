@@ -1,14 +1,22 @@
 import { CircleAlert, type LucideIcon } from 'lucide-react-native'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Animated, StyleSheet, View } from 'react-native'
 import { useColors } from '@m/theme/ThemeProvider'
 import { radius } from '@m/theme/colors'
 import { Button } from './Button'
 import { Text } from './Text'
 
-function Bone({ width, height, round }: { width: number | `${number}%`; height: number; round?: boolean }) {
+function Bone({
+  width,
+  height,
+  round,
+}: {
+  width: number | `${number}%`
+  height: number
+  round?: boolean
+}) {
   const c = useColors()
-  const pulse = useRef(new Animated.Value(0.5)).current
+  const [pulse] = useState(() => new Animated.Value(0.5))
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
@@ -120,7 +128,13 @@ export function QueryStates({
   rows?: number
 }) {
   if (isLoading) return <ListSkeleton rows={rows} />
-  if (error) return <ErrorState message={typeof error === 'string' ? error : 'Something went wrong. Try again.'} onRetry={onRetry} />
+  if (error)
+    return (
+      <ErrorState
+        message={typeof error === 'string' ? error : 'Something went wrong. Try again.'}
+        onRetry={onRetry}
+      />
+    )
   if (isEmpty) return <>{empty}</>
   return <>{children}</>
 }

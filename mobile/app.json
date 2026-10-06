@@ -1,15 +1,21 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
-    "version": "1.0.0",
+    "name": "Ledgerly",
+    "slug": "ledgerly",
+    "scheme": "ledgerly",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.ledgerly.app",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.ledgerly.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -27,8 +33,35 @@
       "expo-sharing",
       "expo-web-browser",
       "expo-localization",
-      "expo-splash-screen",
-      "expo-image"
-    ]
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#0b0f12"
+          }
+        }
+      ],
+      "expo-image",
+      [
+        "expo-notifications",
+        {
+          "color": "#266e69"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ledgerly uses your photos to attach receipts and set your profile photo.",
+          "cameraPermission": "Ledgerly uses the camera to photograph receipts."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false,
+      "tsconfigPaths": false
+    }
   }
 }

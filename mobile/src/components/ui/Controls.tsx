@@ -113,6 +113,7 @@ export function Checkbox({
   description,
   disabled,
   trailing,
+  hideLabel,
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
@@ -120,6 +121,8 @@ export function Checkbox({
   description?: string
   disabled?: boolean
   trailing?: ReactNode
+  /** Only screen readers get the label (the row next to the box already names it). */
+  hideLabel?: boolean
 }) {
   const c = useColors()
   return (
@@ -134,19 +137,24 @@ export function Checkbox({
       <View
         style={[
           styles.box,
-          { borderColor: checked ? c.primary : c.input, backgroundColor: checked ? c.primary : 'transparent' },
+          {
+            borderColor: checked ? c.primary : c.input,
+            backgroundColor: checked ? c.primary : 'transparent',
+          },
         ]}
       >
         {checked ? <Check size={14} color={c.primaryForeground} strokeWidth={3} /> : null}
       </View>
-      <View style={{ flex: 1 }}>
-        <Text>{label}</Text>
-        {description ? (
-          <Text variant="small" tone="muted">
-            {description}
-          </Text>
-        ) : null}
-      </View>
+      {hideLabel ? null : (
+        <View style={{ flex: 1 }}>
+          <Text>{label}</Text>
+          {description ? (
+            <Text variant="small" tone="muted">
+              {description}
+            </Text>
+          ) : null}
+        </View>
+      )}
       {trailing}
     </Pressable>
   )
@@ -257,7 +265,10 @@ export function DateField({
           accessibilityLabel={`${label ?? 'Date'}: ${shown ?? 'not set'}`}
           accessibilityHint="Opens a date picker"
           onPress={open}
-          style={[styles.dateTrigger, { borderColor: error ? c.destructive : c.input, backgroundColor: c.card }]}
+          style={[
+            styles.dateTrigger,
+            { borderColor: error ? c.destructive : c.input, backgroundColor: c.card },
+          ]}
         >
           <Calendar size={18} color={c.mutedForeground} />
           <Text tone={shown ? 'default' : 'muted'}>{shown ?? placeholder}</Text>

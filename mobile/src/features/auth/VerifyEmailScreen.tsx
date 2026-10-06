@@ -43,7 +43,10 @@ export function VerifyEmailScreen() {
     if ('error' in result) {
       setMessage({ kind: 'error', text: result.error as string })
     } else if (!result.data.emailVerified) {
-      setMessage({ kind: 'error', text: 'Not verified yet. Open the link in the email, then try again.' })
+      setMessage({
+        kind: 'error',
+        text: 'Not verified yet. Open the link in the email, then try again.',
+      })
     }
   }
 

@@ -42,7 +42,13 @@ export function SignUpScreen() {
       }
     >
       {serverError ? <FormMessage kind="error">{serverError}</FormMessage> : null}
-      <FormTextField control={control} name="displayName" label="Name" autoComplete="name" textContentType="name" />
+      <FormTextField
+        control={control}
+        name="displayName"
+        label="Name"
+        autoComplete="name"
+        textContentType="name"
+      />
       <FormTextField
         control={control}
         name="email"

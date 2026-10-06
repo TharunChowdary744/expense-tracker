@@ -205,7 +205,12 @@ export function SelectField<V extends string>({
         label={label}
         disabled={disabled}
       />
-      <Sheet open={open} onClose={() => setOpen(false)} title={title ?? label ?? 'Choose'} scroll={false}>
+      <Sheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title={title ?? label ?? 'Choose'}
+        scroll={false}
+      >
         <OptionList
           options={options}
           searchable={searchable ?? options.length > 12}
@@ -254,7 +259,13 @@ export function MultiSelectField<V extends string>({
           : `${selected.length} selected`
   return (
     <FieldShell label={label} hint={hint} error={error}>
-      <Trigger text={text} placeholder={placeholder} onPress={() => setOpen(true)} label={label} error={error} />
+      <Trigger
+        text={text}
+        placeholder={placeholder}
+        onPress={() => setOpen(true)}
+        label={label}
+        error={error}
+      />
       <Sheet
         open={open}
         onClose={() => setOpen(false)}
@@ -273,9 +284,7 @@ export function MultiSelectField<V extends string>({
           searchable={options.length > 12}
           isSelected={(v) => values.includes(v as V)}
           onPick={(v) =>
-            onChange(
-              values.includes(v as V) ? values.filter((x) => x !== v) : [...values, v as V],
-            )
+            onChange(values.includes(v as V) ? values.filter((x) => x !== v) : [...values, v as V])
           }
         />
       </Sheet>

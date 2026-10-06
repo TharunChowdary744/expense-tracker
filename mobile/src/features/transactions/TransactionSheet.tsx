@@ -18,7 +18,10 @@ import {
   useUpdateTransactionMutation,
 } from '@/features/transactions/api'
 import { loadPrefs, rememberTransaction } from '@/features/transactions/prefs'
-import { TRANSACTION_TYPE_LABELS, type TransactionFormValues } from '@/features/transactions/schemas'
+import {
+  TRANSACTION_TYPE_LABELS,
+  type TransactionFormValues,
+} from '@/features/transactions/schemas'
 import type { Transaction } from '@/features/transactions/types'
 import { dateInputToIso, dayKey } from '@/features/transactions/utils'
 import { useToast } from '@/features/ui/hooks'
@@ -38,7 +41,9 @@ export function TransactionSheet() {
   const dialog = useAppSelector((s) => s.ui.dialog)
   const dispatch = useAppDispatch()
   const open =
-    dialog?.kind === 'quick-add' || dialog?.kind === 'edit-transaction' || dialog?.kind === 'edit-recurring'
+    dialog?.kind === 'quick-add' ||
+    dialog?.kind === 'edit-transaction' ||
+    dialog?.kind === 'edit-recurring'
   const initial = dialog?.kind === 'edit-transaction' ? dialog.transaction : undefined
   const duplicate = dialog?.kind === 'edit-transaction' && Boolean(dialog.duplicate)
   const editing = initial !== undefined && !duplicate
@@ -131,7 +136,9 @@ function SheetBody({
   }
 
   async function onSubmitRecurring(
-    values: TransactionFormValues & { recurrence: NonNullable<TransactionFormValues['recurrence']> },
+    values: TransactionFormValues & {
+      recurrence: NonNullable<TransactionFormValues['recurrence']>
+    },
   ): Promise<string | null> {
     const result = rule
       ? await updateRecurring({ uid, rule, values })
@@ -142,7 +149,9 @@ function SheetBody({
     toast({
       title: rule ? 'Recurring rule saved' : `Recurring ${kind} created`,
       description:
-        rule || values.recurrence.mode === 'remind' ? undefined : 'Any occurrences already due are being posted.',
+        rule || values.recurrence.mode === 'remind'
+          ? undefined
+          : 'Any occurrences already due are being posted.',
       variant: 'success',
     })
     onDone()
@@ -163,7 +172,9 @@ function SheetBody({
           dateIso,
           currencies,
           id: txId,
-          attachments: draftUploads.filter((u) => u.draft && u.status !== 'failed').map((u) => u.attachment),
+          attachments: draftUploads
+            .filter((u) => u.draft && u.status !== 'failed')
+            .map((u) => u.attachment),
         })
     if ('error' in result) return String(result.error)
     if (!editing) commitDrafts(prefix)
@@ -195,7 +206,11 @@ function SheetBody({
       }
       attachments={
         receiptsEnabled ? (
-          <AttachmentsField parent={parent} mode={editingTx ? 'saved' : 'draft'} onBusyChange={setPreparingFiles} />
+          <AttachmentsField
+            parent={parent}
+            mode={editingTx ? 'saved' : 'draft'}
+            onBusyChange={setPreparingFiles}
+          />
         ) : undefined
       }
       onSubmit={onSubmit}

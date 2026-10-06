@@ -16,7 +16,15 @@ export interface MenuAction {
 }
 
 /** A "⋮" button that opens an action sheet of row actions. */
-export function ActionMenu({ label, actions, title }: { label: string; actions: MenuAction[]; title?: string }) {
+export function ActionMenu({
+  label,
+  actions,
+  title,
+}: {
+  label: string
+  actions: MenuAction[]
+  title?: string
+}) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -86,7 +94,11 @@ export function ActionSheet({
         <Pressable
           accessibilityRole="button"
           onPress={onClose}
-          style={({ pressed }) => [styles.item, styles.cancel, pressed && { backgroundColor: c.accent }]}
+          style={({ pressed }) => [
+            styles.item,
+            styles.cancel,
+            pressed && { backgroundColor: c.accent },
+          ]}
         >
           <Text weight="600">Cancel</Text>
         </Pressable>
@@ -108,6 +120,12 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   title: { paddingHorizontal: 20, paddingVertical: 8 },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, minHeight: 50 },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 20,
+    minHeight: 50,
+  },
   cancel: { justifyContent: 'center' },
 })

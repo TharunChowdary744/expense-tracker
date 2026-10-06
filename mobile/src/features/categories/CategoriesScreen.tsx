@@ -17,7 +17,11 @@ import {
   useSetCategoriesArchivedMutation,
   useUpdateCategoryMutation,
 } from '@/features/categories/api'
-import { CATEGORY_KINDS, type CategoryFormValues, type CategoryKind } from '@/features/categories/schemas'
+import {
+  CATEGORY_KINDS,
+  type CategoryFormValues,
+  type CategoryKind,
+} from '@/features/categories/schemas'
 import type { Category } from '@/features/categories/types'
 import {
   buildCategoryTree,
@@ -79,18 +83,32 @@ export function CategoriesScreen() {
     if (updates.length === 0) return
     const result = await reorder({ uid, updates })
     if ('error' in result) {
-      toast({ title: 'Could not save the new order', description: String(result.error), variant: 'error' })
+      toast({
+        title: 'Could not save the new order',
+        description: String(result.error),
+        variant: 'error',
+      })
     }
   }
 
   async function toggleArchived(category: Category) {
     const archived = !category.archived
     const ids = archived
-      ? [category.id, ...all.filter((c) => c.parentId === category.id && !c.archived).map((c) => c.id)]
-      : [category.id, ...all.filter((c) => c.id === category.parentId && c.archived).map((c) => c.id)]
+      ? [
+          category.id,
+          ...all.filter((c) => c.parentId === category.id && !c.archived).map((c) => c.id),
+        ]
+      : [
+          category.id,
+          ...all.filter((c) => c.id === category.parentId && c.archived).map((c) => c.id),
+        ]
     const result = await setArchived({ uid, ids, archived })
     if ('error' in result) {
-      toast({ title: 'Could not update the category', description: String(result.error), variant: 'error' })
+      toast({
+        title: 'Could not update the category',
+        description: String(result.error),
+        variant: 'error',
+      })
       return
     }
     const extra = ids.length - 1
@@ -110,7 +128,8 @@ export function CategoriesScreen() {
 
   // Dialog state
   const editing = dialog.mode === 'edit' ? dialog.category : undefined
-  const dialogKind = dialog.mode === 'edit' ? dialog.category.kind : dialog.mode === 'create' ? dialog.kind : kind
+  const dialogKind =
+    dialog.mode === 'edit' ? dialog.category.kind : dialog.mode === 'create' ? dialog.kind : kind
   const hasChildren = editing ? all.some((c) => c.parentId === editing.id) : false
   const parents = parentCandidates(all, dialogKind, editing?.id)
   const currentParent = all.find((c) => c.id === editing?.parentId)
@@ -173,11 +192,17 @@ export function CategoriesScreen() {
                   {
                     label: 'Add subcategory',
                     icon: Plus,
-                    onPress: () => setDialog({ mode: 'create', kind: category.kind, parentId: category.id }),
+                    onPress: () =>
+                      setDialog({ mode: 'create', kind: category.kind, parentId: category.id }),
                   },
                 ]
               : []),
-            { label: 'Move up', icon: ArrowUp, disabled: index <= 0, onPress: () => void move(category, siblings, -1) },
+            {
+              label: 'Move up',
+              icon: ArrowUp,
+              disabled: index <= 0,
+              onPress: () => void move(category, siblings, -1),
+            },
             {
               label: 'Move down',
               icon: ArrowDown,
@@ -205,9 +230,17 @@ export function CategoriesScreen() {
         onChange={setKind}
         options={CATEGORY_KINDS.map((k) => ({ value: k, label: KIND_LABELS[k] }))}
       />
-      <Button title={`Add ${kind} category`} icon={Plus} onPress={() => setDialog({ mode: 'create', kind })} />
+      <Button
+        title={`Add ${kind} category`}
+        icon={Plus}
+        onPress={() => setDialog({ mode: 'create', kind })}
+      />
       {archivedCount > 0 ? (
-        <SwitchRow label={`Show archived (${archivedCount})`} value={showArchived} onChange={setShowArchived} />
+        <SwitchRow
+          label={`Show archived (${archivedCount})`}
+          value={showArchived}
+          onChange={setShowArchived}
+        />
       ) : null}
       <QueryStates
         isLoading={isLoading}
@@ -219,7 +252,13 @@ export function CategoriesScreen() {
             icon={Tags}
             title={`No ${kind} categories yet`}
             description="Categories group your transactions in budgets and reports."
-            action={<Button title={`Add ${kind} category`} icon={Plus} onPress={() => setDialog({ mode: 'create', kind })} />}
+            action={
+              <Button
+                title={`Add ${kind} category`}
+                icon={Plus}
+                onPress={() => setDialog({ mode: 'create', kind })}
+              />
+            }
           />
         }
       >

@@ -70,7 +70,13 @@ export function AccountForm({
   return (
     <View style={{ gap: 16 }}>
       {error ? <FormMessage kind="error">{error}</FormMessage> : null}
-      <FormTextField control={control} name="name" label="Name" maxLength={ACCOUNT_NAME_MAX} autoComplete="off" />
+      <FormTextField
+        control={control}
+        name="name"
+        label="Name"
+        maxLength={ACCOUNT_NAME_MAX}
+        autoComplete="off"
+      />
       <FormSelectField
         control={control}
         name="type"
@@ -96,7 +102,12 @@ export function AccountForm({
         control={control}
         name="color"
         render={({ field, fieldState }) => (
-          <ColorPicker label="Colour" value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+          <ColorPicker
+            label="Colour"
+            value={field.value}
+            onChange={field.onChange}
+            error={fieldState.error?.message}
+          />
         )}
       />
       <Controller

@@ -214,7 +214,9 @@ export function TransactionForm(props: TransactionFormProps) {
     `${a.name} · ${formatMoney(accountBalance(a), a.currency, locale)}${a.archived ? ' (archived)' : ''}`
   const accountSelect = accountOptions.map((a) => ({ value: a.id, label: accountLabel(a) }))
   const payeeSuggestions = payee
-    ? prefs.recentPayees.filter((p) => p.toLowerCase().includes(payee.toLowerCase()) && p !== payee).slice(0, 8)
+    ? prefs.recentPayees
+        .filter((p) => p.toLowerCase().includes(payee.toLowerCase()) && p !== payee)
+        .slice(0, 8)
     : []
 
   return (
@@ -266,7 +268,10 @@ export function TransactionForm(props: TransactionFormProps) {
               value={currency}
               title="Currency"
               searchable
-              options={currencyOptions(locale, currency).map((o) => ({ value: o.value, label: o.label }))}
+              options={currencyOptions(locale, currency).map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
               onChange={changeCurrency}
             />
           </View>
@@ -275,7 +280,9 @@ export function TransactionForm(props: TransactionFormProps) {
 
       <AmountKeypad
         onKey={(key) =>
-          setValue('amount', applyKey(getValues('amount'), key), { shouldValidate: Boolean(errors.amount) })
+          setValue('amount', applyKey(getValues('amount'), key), {
+            shouldValidate: Boolean(errors.amount),
+          })
         }
       />
 
@@ -323,7 +330,13 @@ export function TransactionForm(props: TransactionFormProps) {
           options={accountSelect.filter((a) => a.value !== accountId)}
         />
       ) : (
-        <FormSelectField control={control} name="categoryId" label="Category" options={categorySelect} searchable />
+        <FormSelectField
+          control={control}
+          name="categoryId"
+          label="Category"
+          options={categorySelect}
+          searchable
+        />
       )}
 
       <FormDateField
@@ -335,9 +348,19 @@ export function TransactionForm(props: TransactionFormProps) {
 
       {type !== 'transfer' ? (
         <View style={{ gap: 6 }}>
-          <FormTextField control={control} name="payee" label="Payee" maxLength={PAYEE_MAX} autoComplete="off" />
+          <FormTextField
+            control={control}
+            name="payee"
+            label="Payee"
+            maxLength={PAYEE_MAX}
+            autoComplete="off"
+          />
           {payeeSuggestions.length > 0 ? (
-            <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}>
+            <ScrollView
+              horizontal
+              keyboardShouldPersistTaps="handled"
+              showsHorizontalScrollIndicator={false}
+            >
               <View style={{ flexDirection: 'row', gap: 6 }}>
                 {payeeSuggestions.map((p) => (
                   <Chip key={p} label={p} onPress={() => setValue('payee', p)} />

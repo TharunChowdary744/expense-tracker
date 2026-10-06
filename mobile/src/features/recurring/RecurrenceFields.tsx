@@ -86,13 +86,23 @@ export function RecurrenceFields({ control, locale }: { control: FormControl; lo
                         accessibilityRole="togglebutton"
                         accessibilityState={{ checked: on }}
                         accessibilityLabel={weekdayName(day, 'long')}
-                        onPress={() => field.onChange(on ? selected.filter((d) => d !== day) : [...selected, day])}
+                        onPress={() =>
+                          field.onChange(
+                            on ? selected.filter((d) => d !== day) : [...selected, day],
+                          )
+                        }
                         style={[
                           styles.day,
-                          { borderColor: on ? c.primary : c.input, backgroundColor: on ? c.primary : c.card },
+                          {
+                            borderColor: on ? c.primary : c.input,
+                            backgroundColor: on ? c.primary : c.card,
+                          },
                         ]}
                       >
-                        <Text variant="small" style={{ color: on ? c.primaryForeground : c.foreground }}>
+                        <Text
+                          variant="small"
+                          style={{ color: on ? c.primaryForeground : c.foreground }}
+                        >
                           {weekdayName(day, 'short')}
                         </Text>
                       </Pressable>
@@ -118,9 +128,14 @@ export function RecurrenceFields({ control, locale }: { control: FormControl; lo
           options={[
             {
               value: 'start',
-              label: startDay ? `The ${ordinal(startDay)} (like the start date)` : 'The start date’s day',
+              label: startDay
+                ? `The ${ordinal(startDay)} (like the start date)`
+                : 'The start date’s day',
             },
-            ...Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: `The ${ordinal(i + 1)}` })),
+            ...Array.from({ length: 31 }, (_, i) => ({
+              value: String(i + 1),
+              label: `The ${ordinal(i + 1)}`,
+            })),
             { value: 'last', label: 'The last day of the month' },
           ]}
         />
@@ -136,7 +151,9 @@ export function RecurrenceFields({ control, locale }: { control: FormControl; lo
           { value: 'after', label: 'After a number of times' },
         ]}
       />
-      {ends === 'on' ? <FormDateField control={control} name="recurrence.endDate" label="End date" /> : null}
+      {ends === 'on' ? (
+        <FormDateField control={control} name="recurrence.endDate" label="End date" />
+      ) : null}
       {ends === 'after' ? (
         <FormTextField
           control={control}
@@ -162,7 +179,10 @@ export function RecurrenceFields({ control, locale }: { control: FormControl; lo
                     accessibilityState={{ checked: on }}
                     accessibilityLabel={`${RECURRING_MODE_LABELS[mode]}. ${MODE_HINTS[mode]}`}
                     onPress={() => field.onChange(mode)}
-                    style={[styles.mode, { borderColor: on ? c.primary : c.border, backgroundColor: c.card }]}
+                    style={[
+                      styles.mode,
+                      { borderColor: on ? c.primary : c.border, backgroundColor: c.card },
+                    ]}
                   >
                     <View style={[styles.radio, { borderColor: on ? c.primary : c.input }]}>
                       {on ? <View style={[styles.dot, { backgroundColor: c.primary }]} /> : null}
@@ -187,8 +207,31 @@ export function RecurrenceFields({ control, locale }: { control: FormControl; lo
 const styles = StyleSheet.create({
   box: { gap: 14, borderWidth: 1, borderRadius: radius.lg, padding: 12 },
   days: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  day: { minWidth: 44, height: 38, borderWidth: 1, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  mode: { flexDirection: 'row', gap: 10, borderWidth: 1, borderRadius: radius.md, padding: 10, alignItems: 'flex-start' },
-  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  day: {
+    minWidth: 44,
+    height: 38,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  mode: {
+    flexDirection: 'row',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: 10,
+    alignItems: 'flex-start',
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
   dot: { width: 10, height: 10, borderRadius: 5 },
 })

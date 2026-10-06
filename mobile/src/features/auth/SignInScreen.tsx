@@ -66,7 +66,11 @@ export function SignInScreen() {
           <Text tone="primary">Forgot password?</Text>
         </Link>
       </View>
-      <Button title={isLoading ? 'Signing in…' : 'Sign in'} loading={isLoading} onPress={() => void submit()} />
+      <Button
+        title={isLoading ? 'Signing in…' : 'Sign in'}
+        loading={isLoading}
+        onPress={() => void submit()}
+      />
       {googleConfigured() ? (
         <>
           <Divider label="or" />

@@ -2,7 +2,16 @@ import { nanoid } from '@reduxjs/toolkit'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import * as Linking from 'expo-linking'
-import { AlertCircle, Camera, CloudOff, FileText, ImageIcon, ImageOff, RotateCw, X } from 'lucide-react-native'
+import {
+  AlertCircle,
+  Camera,
+  CloudOff,
+  FileText,
+  ImageIcon,
+  ImageOff,
+  RotateCw,
+  X,
+} from 'lucide-react-native'
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { useAppSelector } from '@/app/hooks'
@@ -260,9 +269,30 @@ export function AttachmentsField({ parent, mode, onBusyChange }: Props) {
       ) : null}
 
       <View style={styles.buttons}>
-        <Button title="Take photo" icon={Camera} variant="outline" size="sm" disabled={full} onPress={() => void takePhoto()} />
-        <Button title="Photos" icon={ImageIcon} variant="outline" size="sm" disabled={full} onPress={() => void choosePhotos()} />
-        <Button title="PDF" icon={FileText} variant="outline" size="sm" disabled={full} onPress={() => void choosePdf()} />
+        <Button
+          title="Take photo"
+          icon={Camera}
+          variant="outline"
+          size="sm"
+          disabled={full}
+          onPress={() => void takePhoto()}
+        />
+        <Button
+          title="Photos"
+          icon={ImageIcon}
+          variant="outline"
+          size="sm"
+          disabled={full}
+          onPress={() => void choosePhotos()}
+        />
+        <Button
+          title="PDF"
+          icon={FileText}
+          variant="outline"
+          size="sm"
+          disabled={full}
+          onPress={() => void choosePdf()}
+        />
       </View>
       <Text variant="caption" tone="muted">
         {full
@@ -369,7 +399,9 @@ function Thumb({
       <View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={src ? `${pdf ? 'Open' : 'View'} ${label}` : `${label}, not available yet`}
+          accessibilityLabel={
+            src ? `${pdf ? 'Open' : 'View'} ${label}` : `${label}, not available yet`
+          }
           accessibilityState={{ disabled: !src }}
           disabled={!src}
           onPress={open}

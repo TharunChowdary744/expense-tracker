@@ -44,3 +44,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: screenPadding,
 })
+
+/** Padding for FlatList/SectionList content (rows set their own spacing). */
+export const listPadding = { padding: 16, paddingBottom: 112 } as const

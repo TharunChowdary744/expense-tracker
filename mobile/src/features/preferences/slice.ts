@@ -26,10 +26,7 @@ const preferencesSlice = createSlice({
     preferencesLoaded(state, action: PayloadAction<Partial<PreferencesState>>) {
       return { ...state, ...action.payload, loaded: true }
     },
-    preferencesChanged(
-      state,
-      action: PayloadAction<Partial<Omit<PreferencesState, 'loaded'>>>,
-    ) {
+    preferencesChanged(state, action: PayloadAction<Partial<Omit<PreferencesState, 'loaded'>>>) {
       return { ...state, ...action.payload }
     },
   },

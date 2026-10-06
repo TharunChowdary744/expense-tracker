@@ -22,8 +22,6 @@ export const env = {
   },
   /** The web app's address, used for group invite links that anyone can open. */
   webAppUrl: (process.env.EXPO_PUBLIC_WEB_APP_URL || '').replace(/\/+$/, ''),
-  /** EAS project id, needed for Expo push tokens. */
-  easProjectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
 } as const
 
 export function isFirebaseConfigured(): boolean {

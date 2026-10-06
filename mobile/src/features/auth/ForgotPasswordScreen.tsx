@@ -24,7 +24,10 @@ export function ForgotPasswordScreen() {
     setMessage(
       'error' in result
         ? { kind: 'error', text: result.error as string }
-        : { kind: 'success', text: `If an account exists for ${email}, a reset link is on its way.` },
+        : {
+            kind: 'success',
+            text: `If an account exists for ${email}, a reset link is on its way.`,
+          },
     )
   })
 
@@ -50,7 +53,11 @@ export function ForgotPasswordScreen() {
         autoComplete="email"
         onSubmitEditing={() => void submit()}
       />
-      <Button title={isLoading ? 'Sending…' : 'Send reset link'} loading={isLoading} onPress={() => void submit()} />
+      <Button
+        title={isLoading ? 'Sending…' : 'Send reset link'}
+        loading={isLoading}
+        onPress={() => void submit()}
+      />
     </AuthLayout>
   )
 }

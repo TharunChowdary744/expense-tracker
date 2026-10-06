@@ -10,6 +10,11 @@
 //    shared module never pulls in its web-only neighbour.
 // 3. Packages imported from ../src resolve from this app's node_modules, so there is exactly
 //    one copy of React, Redux, Firebase and zod in the bundle.
+// 4. Web-only packages that a shared module loads lazily, in code this app never runs (jsPDF
+//    for the web PDF statement), resolve to an empty module.
+//
+// Expo's own tsconfig `paths` mapping is off (app.json experiments.tsconfigPaths): the package
+// entries in tsconfig.json point at type packages and are for the type checker only.
 const path = require('node:path')
 const fs = require('node:fs')
 const { getDefaultConfig } = require('expo/metro-config')
@@ -18,6 +23,7 @@ const appRoot = __dirname
 const sharedRoot = path.resolve(appRoot, '../src')
 const overridesRoot = path.resolve(appRoot, 'src/overrides')
 const EXTENSIONS = ['.ts', '.tsx', '/index.ts', '/index.tsx']
+const WEB_ONLY_PACKAGES = new Set(['jspdf', 'jspdf-autotable'])
 
 function overrideFor(relative) {
   const stem = relative.replace(/\.(ts|tsx|js)$/, '')
@@ -43,11 +49,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   }
 
   if (moduleName.startsWith('@m/')) {
-    return context.resolveRequest(
-      context,
-      path.join(appRoot, 'src', moduleName.slice(3)),
-      platform,
-    )
+    return context.resolveRequest(context, path.join(appRoot, 'src', moduleName.slice(3)), platform)
   }
 
   if (fromShared && moduleName.startsWith('.')) {
@@ -58,6 +60,8 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     }
     return resolved
   }
+
+  if (fromShared && WEB_ONLY_PACKAGES.has(moduleName)) return { type: 'empty' }
 
   if (fromShared) {
     // Resolve packages as if the import were written in this app.

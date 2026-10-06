@@ -19,7 +19,10 @@ export function AuthLayout({
   const c = useColors()
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: c.background }]}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
             <View style={[styles.logo, { backgroundColor: c.primary }]}>

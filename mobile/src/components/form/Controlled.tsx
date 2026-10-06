@@ -8,7 +8,10 @@ export function FormTextField<T extends FieldValues, TOut extends FieldValues = 
   control,
   name,
   ...rest
-}: { control: Control<T, unknown, TOut>; name: FieldPath<T> } & Omit<TextFieldProps, 'value' | 'onChangeText'>) {
+}: { control: Control<T, unknown, TOut>; name: FieldPath<T> } & Omit<
+  TextFieldProps,
+  'value' | 'onChangeText'
+>) {
   return (
     <Controller
       control={control}

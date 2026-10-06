@@ -55,9 +55,16 @@ export function AccountsScreen() {
     const archived = !account.archived
     const result = await setArchived({ uid, id: account.id, archived })
     if ('error' in result) {
-      toast({ title: 'Could not update the account', description: String(result.error), variant: 'error' })
+      toast({
+        title: 'Could not update the account',
+        description: String(result.error),
+        variant: 'error',
+      })
     } else {
-      toast({ title: archived ? `${account.name} archived` : `${account.name} restored`, variant: 'success' })
+      toast({
+        title: archived ? `${account.name} archived` : `${account.name} restored`,
+        variant: 'success',
+      })
     }
   }
 
@@ -112,7 +119,13 @@ export function AccountsScreen() {
             icon={Wallet}
             title={archivedCount > 0 ? 'All your accounts are archived' : 'No accounts yet'}
             description="Add the bank accounts, cards and cash you want to track."
-            action={<Button title="Add account" icon={Plus} onPress={() => setDialog({ mode: 'create' })} />}
+            action={
+              <Button
+                title="Add account"
+                icon={Plus}
+                onPress={() => setDialog({ mode: 'create' })}
+              />
+            }
           />
         }
       >
@@ -150,7 +163,11 @@ export function AccountsScreen() {
                   label={`Actions for ${account.name}`}
                   title={account.name}
                   actions={[
-                    { label: 'Edit', icon: Pencil, onPress: () => setDialog({ mode: 'edit', account }) },
+                    {
+                      label: 'Edit',
+                      icon: Pencil,
+                      onPress: () => setDialog({ mode: 'edit', account }),
+                    },
                     {
                       label: account.archived ? 'Restore' : 'Archive',
                       icon: account.archived ? ArchiveRestore : Archive,
